@@ -21,6 +21,24 @@ class Order(models.Model):
         verbose_name = l_(u'Заказ')
         verbose_name_plural = l_(u'Заказы')
 
+    def __str__(self):
+        return f'{self.user.full_name}: {self.pk}'
+
+    def update_sum(self):
+        total, total_profit = 0, 0
+        for item in self.items.all():
+            total += item.count * item.product.price
+            total_profit += item.count * (item.product.price - item.product.sb_price)
+        self.total = total
+        self.profit = total_profit
+        self.save()
+
+    def recalculate_rests(self):
+        for item in self.items.all():
+            pr = item.product
+            pr.rest -= item.count
+            pr.save()
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, verbose_name=l_(u'Позиция'), related_name='items', on_delete=SET_NULL, null=True)
@@ -30,3 +48,6 @@ class OrderItem(models.Model):
     class Meta:
         verbose_name = l_(u'Позиция')
         verbose_name_plural = l_(u'Позиции')
+
+    def __str__(self):
+        return f'order {self.order.pk} by {self.order.user.full_name}: {self.pk}'

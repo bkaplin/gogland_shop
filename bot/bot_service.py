@@ -358,8 +358,8 @@ class BotServiceV3(object):
         l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in Category.objects.filter(parent__isnull=True).order_by('position')]
         l.append(
             [
-                InlineKeyboardButton("end", callback_data=str('end')),
-                InlineKeyboardButton("cancel", callback_data=str('exit')),
+                InlineKeyboardButton("Оформить", callback_data=str('confirm')),
+                InlineKeyboardButton("Отмена", callback_data=str('exit')),
             ]
         )
         return l
@@ -372,18 +372,18 @@ class BotServiceV3(object):
             l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories]
             l.append(
                 [
-                    InlineKeyboardButton("end", callback_data=str('end')),
-                    InlineKeyboardButton("cancel", callback_data=str('exit')),
-                    InlineKeyboardButton("back", callback_data='back_to' + str(category.parent.pk if category.parent else '')),
+                    InlineKeyboardButton("Оформить", callback_data=str('confirm')),
+                    InlineKeyboardButton("Отмена", callback_data=str('exit')),
+                    InlineKeyboardButton("Назад", callback_data='back_to' + str(category.parent.pk if category.parent else '')),
                 ]
             )
         else:
             l = [[InlineKeyboardButton(f'{p.name} (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category.products.all()]
             l.append(
                 [
-                    InlineKeyboardButton("end", callback_data=str('end')),
-                    InlineKeyboardButton("cancel", callback_data=str('exit')),
-                    InlineKeyboardButton("back",
+                    InlineKeyboardButton("Оформить", callback_data=str('confirm')),
+                    InlineKeyboardButton("Отмена", callback_data=str('exit')),
+                    InlineKeyboardButton("Назад",
                                          callback_data='back_to' + str(category.parent.pk if category.parent else '')),
                 ]
             )
@@ -392,9 +392,6 @@ class BotServiceV3(object):
     def button(self, update, _):
         query = update.callback_query
         variant = query.data
-
-        print("YYYYYYYYYYYYYYYYYYYYY")
-        print(dir(query))
 
         user = query.from_user
         local_user = User.objects.filter(tg_id=user.id).first()
@@ -412,6 +409,13 @@ class BotServiceV3(object):
         elif variant == 'exit':
             query.edit_message_text(text="Приходите еще")
             return ConversationHandler.END
+        elif variant == 'confirm':
+            order = local_user.orders.filter(in_cart=True).first()
+            order.in_cart = False
+            order.update_sum()
+            order.recalculate_rests()
+            query.edit_message_text(text=f"Заказ {order.pk} на {order.total} оформлен.")
+            return
         elif variant.startswith('buy'):
             variant = variant.replace('buy', '')
             buy = True
@@ -423,7 +427,7 @@ class BotServiceV3(object):
                 order, o_created = Order.objects.get_or_create(
                     user=local_user, in_cart=True
                 )
-                oi = OrderItem.objects.create(
+                OrderItem.objects.create(
                     product=product,
                     order=order,
                     count=0
@@ -468,6 +472,7 @@ class BotServiceV3(object):
             return
         oi.count = float(text_received)
         oi.save()
+        order.update_sum()
 
         self.send_root_menu(update)
 
