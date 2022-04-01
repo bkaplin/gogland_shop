@@ -15,6 +15,7 @@ class Order(models.Model):
     total = models.FloatField(verbose_name=l_(u'Итого'), default=0)
     is_payed = models.BooleanField(verbose_name=l_(u'Оплачен'), default=False)
     is_closed = models.BooleanField(verbose_name=l_(u'Закрыт'), default=False)
+    cancelled = models.BooleanField(verbose_name=l_(u'Отменён'), default=False)
     profit = models.FloatField(verbose_name=l_(u'Прибыль'), default=0)
 
     class Meta:
@@ -27,27 +28,64 @@ class Order(models.Model):
     def update_sum(self):
         total, total_profit = 0, 0
         for item in self.items.all():
-            total += item.count * item.product.price
+            total += item.sum
             total_profit += item.count * (item.product.price - item.product.sb_price)
         self.total = total
         self.profit = total_profit
         self.save()
 
     def recalculate_rests(self):
-        for item in self.items.all():
+        for item in self.items.filter(sync=False):
             pr = item.product
             pr.rest -= item.count
             pr.save()
+            item.sync = True
+            item.save()
+
+    def cancel_order_n_recalculate_rests(self):
+        for item in self.items.filter(sync=True):
+            pr = item.product
+            pr.rest += item.count
+            pr.save()
+            item.sync = False
+            item.save()
+        self.is_closed = True
+        self.cancelled = True
+        self.in_cart = False
+        self.save()
+
+    @property
+    def info(self):
+        items = self.items.filter(sync=True, count__gt=0)
+        items_info = '\n'.join([i.info for i in items])
+        return f'Заказ №{self.pk}:\n{items_info}\n\nИтого: {self.total}₽\n\n'
 
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, verbose_name=l_(u'Позиция'), related_name='items', on_delete=SET_NULL, null=True)
     product = models.ForeignKey(Product, verbose_name=l_(u'Продукт'), on_delete=SET_NULL, null=True)
-    count = models.IntegerField(verbose_name=l_('Количество'), default=1)
+    count = models.IntegerField(verbose_name=l_('Количество'), default=0)
+    sync = models.BooleanField(verbose_name=l_(u'Синхронизирован'), default=False)
+    in_process = models.BooleanField(verbose_name=l_(u'В процессе изменения количества'), default=False)
 
     class Meta:
         verbose_name = l_(u'Позиция')
         verbose_name_plural = l_(u'Позиции')
 
     def __str__(self):
-        return f'order {self.order.pk} by {self.order.user.full_name}: {self.pk}'
+        return f'order {self.order.pk} by {self.order.user.full_name}: {self.product.name if self.product else self.pk} {self.count}шт.'
+
+    @property
+    def sum(self):
+        return self.product.price * self.count
+
+    @property
+    def info(self):
+        return f'{self.product.name}\t{self.count}шт.\t{self.sum}₽'
+
+    def reduce_rest(self, count):
+        self.product.rest -= count or self.count
+        self.product.save()
+
+        self.sync = True
+        self.save()

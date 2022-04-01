@@ -20,6 +20,18 @@ class Category(models.Model):
     def __str__(self):
         return self.name or str(self.pk)
 
+    @property
+    def has_products(self):
+        child_categories = self.child_categories.all()
+
+        if self.products.exists() or not child_categories.exists():
+            return self.products.filter(rest__gt=0).exists()
+
+        for category in child_categories:
+            if category.has_products:
+                return True
+        return False
+
 
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name=l_(u'Название продукта'), null=True, blank=True)

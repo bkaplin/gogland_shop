@@ -34,7 +34,6 @@ class BotService:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         update.message.reply_markdown('help command received', reply_markup=reply_markup)
-        print('SCSCC')
 
     # function to handle errors occured in the dispatcher
     @staticmethod
@@ -344,49 +343,48 @@ class BotServiceV3(object):
         # update.message.reply_text(
         #     text="Выберете товар", reply_markup=reply_markup
         # )
-        self.send_root_menu(update)
+        orders_in_cart = local_user.orders.filter(in_cart=True)
+        for order in orders_in_cart:
+            order.cancel_order_n_recalculate_rests()
 
-    def send_root_menu(self, update):
-        keyboard = self.get_root_menu()
+        self.send_root_menu(update, False)
+
+    def send_root_menu(self, update, user_has_order_in_cart, additional_message=''):
+        keyboard = self.get_root_menu(user_has_order_in_cart)
         reply_markup = InlineKeyboardMarkup(keyboard)
         # Отправляем сообщение с текстом и добавленной клавиатурой `reply_markup`
         update.message.reply_text(
-            text="Выберете товар", reply_markup=reply_markup
+            text=f"{additional_message}Выберете товар", reply_markup=reply_markup
         )
 
-    def get_root_menu(self):
-        l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in Category.objects.filter(parent__isnull=True).order_by('position')]
-        l.append(
-            [
-                InlineKeyboardButton("Оформить", callback_data=str('confirm')),
-                InlineKeyboardButton("Отмена", callback_data=str('exit')),
-            ]
-        )
+    def get_root_menu(self, user_has_order_in_cart):
+        l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in Category.objects.filter(parent__isnull=True).order_by('position') if c.has_products]
+
+        bottom_buttons = []
+        if user_has_order_in_cart:
+            bottom_buttons.append(InlineKeyboardButton("Оформить", callback_data=str('confirm')))
+        bottom_buttons.append(InlineKeyboardButton("Отмена", callback_data=str('exit')))
+        l.append(bottom_buttons)
         return l
 
-    def get_buttons(self, category):
+    def get_buttons(self, category, user_has_order_in_cart):
         if not category:
             return
         childs_categories = category.child_categories.order_by('position')
+        bottom_buttons = []
         if childs_categories.exists():
-            l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories]
-            l.append(
-                [
-                    InlineKeyboardButton("Оформить", callback_data=str('confirm')),
-                    InlineKeyboardButton("Отмена", callback_data=str('exit')),
-                    InlineKeyboardButton("Назад", callback_data='back_to' + str(category.parent.pk if category.parent else '')),
-                ]
-            )
+            l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories if c.has_products]
         else:
-            l = [[InlineKeyboardButton(f'{p.name} (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category.products.all()]
-            l.append(
-                [
-                    InlineKeyboardButton("Оформить", callback_data=str('confirm')),
-                    InlineKeyboardButton("Отмена", callback_data=str('exit')),
-                    InlineKeyboardButton("Назад",
-                                         callback_data='back_to' + str(category.parent.pk if category.parent else '')),
-                ]
-            )
+            l = [[InlineKeyboardButton(f'{p.name} (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category.products.filter(rest__gt=0)]
+
+        if user_has_order_in_cart:
+            bottom_buttons.append(InlineKeyboardButton("Оформить", callback_data=str('confirm')))
+        bottom_buttons += [
+            InlineKeyboardButton("Отмена", callback_data=str('exit')),
+            InlineKeyboardButton("Назад", callback_data='back_to' + str(category.parent.pk if category.parent else '')),
+        ]
+        l.append(bottom_buttons)
+
         return l
 
     def button(self, update, _):
@@ -404,17 +402,19 @@ class BotServiceV3(object):
             )
 
         buy = False
+        order = local_user.orders.filter(in_cart=True).first()
+        additional_message = order.info if order else ''
+
         if variant.startswith('back_to'):
             variant = variant.replace('back_to', '')
         elif variant == 'exit':
             query.edit_message_text(text="Приходите еще")
             return ConversationHandler.END
-        elif variant == 'confirm':
-            order = local_user.orders.filter(in_cart=True).first()
+        elif variant == 'confirm' and order:
             order.in_cart = False
             order.update_sum()
             order.recalculate_rests()
-            query.edit_message_text(text=f"Заказ {order.pk} на {order.total} оформлен.")
+            query.edit_message_text(text=f"Заказ №{order.pk} на {order.total}₽ оформлен.")
             return
         elif variant.startswith('buy'):
             variant = variant.replace('buy', '')
@@ -423,22 +423,25 @@ class BotServiceV3(object):
         if buy:
             product = Product.objects.filter(pk=variant).first()
             if product:
-                query.edit_message_text(text=f"Отправьте количество")
+                query.edit_message_text(text=f'Сколько нужно "{product.name}"? Отправьте количество.')
                 order, o_created = Order.objects.get_or_create(
                     user=local_user, in_cart=True
                 )
-                OrderItem.objects.create(
+                OrderItem.objects.filter(order=order, count__lt=1).delete()
+                oi, oi_created = OrderItem.objects.get_or_create(
                     product=product,
                     order=order,
-                    count=0
                 )
+                oi.in_process = True
+                oi.save()
                 return
         category = None
+        user_has_order_in_cart = local_user.orders.filter(in_cart=True).exclude(items__count__lt=1).exists()
         if variant:
             category = Category.objects.filter(pk=variant).first()
-            buttons = self.get_buttons(category)
+            buttons = self.get_buttons(category, user_has_order_in_cart)
         else:
-            buttons = self.get_root_menu()
+            buttons = self.get_root_menu(user_has_order_in_cart)
         reply_markup = InlineKeyboardMarkup(buttons)
 
         # `CallbackQueries` требует ответа, даже если
@@ -448,7 +451,7 @@ class BotServiceV3(object):
         query.answer()
         # редактируем сообщение, тем самым кнопки
         # в чате заменятся на этот ответ.
-        query.edit_message_text(text=f"{category.name if category else 'Выберете товар'}", reply_markup=reply_markup)
+        query.edit_message_text(text=f"{additional_message}{category.name if category else 'Выберете товар'}", reply_markup=reply_markup)
 
     @staticmethod
     def help_command(update, _):
@@ -456,7 +459,7 @@ class BotServiceV3(object):
 
     @staticmethod
     def error(update, context):
-        update.message.reply_text('an error occured')
+        update.message.reply_text('Что-то пошло не так. Отправьте корректный выбор.')
 
     def text(self, update, context):
         text_received = update.message.text
@@ -466,15 +469,27 @@ class BotServiceV3(object):
         if not local_user:
             return
         order = local_user.orders.filter(in_cart=True).first()
-        oi = order.items.filter(count__lt=1).first()
+        oi = order.items.filter(in_process=True).first()
 
         if not oi:
             return
-        oi.count = float(text_received)
+        count = float(text_received)
+        if count <= 0:
+            raise Exception
+        valid_count = count if count <= oi.product.rest else oi.product.rest
+        oi.count += valid_count
+        oi.in_process = False
         oi.save()
+        max_count = count >= oi.product.rest
+        oi.reduce_rest(valid_count)
         order.update_sum()
 
-        self.send_root_menu(update)
+        # order.combine_items()
+
+        max_count_message = "(Максимальное количество)" if max_count  else ""
+        additional_message = f'Добавлен товар {oi.product.name} в количестве {oi.count}шт.{max_count_message} на {oi.sum}₽\n\n{order.info}\n\n'
+
+        self.send_root_menu(update, True, additional_message=additional_message)
 
         # update.message.reply_text('an error occured')
 
