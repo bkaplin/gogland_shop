@@ -62,7 +62,7 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, verbose_name=l_(u'Позиция'), related_name='items', on_delete=SET_NULL, null=True)
+    order = models.ForeignKey(Order, verbose_name=l_(u'Заказ'), related_name='items', on_delete=SET_NULL, null=True)
     product = models.ForeignKey(Product, verbose_name=l_(u'Продукт'), on_delete=SET_NULL, null=True)
     count = models.IntegerField(verbose_name=l_('Количество'), default=0)
     sync = models.BooleanField(verbose_name=l_(u'Синхронизирован'), default=False)
