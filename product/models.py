@@ -46,3 +46,7 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name or str(self.pk)
+
+    @property
+    def price_int(self):
+        return int(self.price)

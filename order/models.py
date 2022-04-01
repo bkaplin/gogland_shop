@@ -58,7 +58,11 @@ class Order(models.Model):
     def info(self):
         items = self.items.filter(sync=True, count__gt=0)
         items_info = '\n'.join([i.info for i in items])
-        return f'Заказ №{self.pk}:\n{items_info}\n\nИтого: {self.total}₽\n\n'
+        return f'Заказ №{self.pk}:\n{items_info}\n\nИтого: {self.total_int} ₽\n\n'
+
+    @property
+    def total_int(self):
+        return int(self.total)
 
 
 class OrderItem(models.Model):
@@ -80,8 +84,12 @@ class OrderItem(models.Model):
         return self.product.price * self.count
 
     @property
+    def sum_int(self):
+        return int(self.sum)
+
+    @property
     def info(self):
-        return f'{self.product.name}\t{self.count}шт.\t{self.sum}₽'
+        return f'{self.product.name}\t{self.count}шт.\t{self.sum_int} ₽'
 
     def reduce_rest(self, count):
         self.product.rest -= count or self.count
@@ -89,3 +97,13 @@ class OrderItem(models.Model):
 
         self.sync = True
         self.save()
+
+    def save(self, *args, **kwargs):
+        super(OrderItem, self).save(*args, **kwargs)
+        self.order.update_sum()
+
+    def delete(self, using=None, keep_parents=False):
+        o = self.order
+        super(OrderItem, self).delete(using=using, keep_parents=keep_parents)
+        o.update_sum()
+

@@ -72,7 +72,7 @@ class BotService:
         if childs_categories.exists():
             l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories if c.has_products]
         else:
-            l = [[InlineKeyboardButton(f'{p.name} {p.price}₽ (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category.products.filter(rest__gt=0)]
+            l = [[InlineKeyboardButton(f'{p.name} {p.price_int} ₽ (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category.products.filter(rest__gt=0)]
 
         if user_has_order_in_cart:
             bottom_buttons.append(InlineKeyboardButton("Оформить", callback_data=str('confirm')))
@@ -111,7 +111,7 @@ class BotService:
             order.in_cart = False
             order.update_sum()
             order.recalculate_rests()
-            query.edit_message_text(text=f"Заказ №{order.pk} на {order.total}₽ оформлен.")
+            query.edit_message_text(text=f"Заказ №{order.pk} на {order.total_int} ₽ оформлен.")
             return
         elif variant.startswith('buy'):
             variant = variant.replace('buy', '')
@@ -184,7 +184,7 @@ class BotService:
         # order.combine_items()
 
         max_count_message = "(Максимальное количество)" if max_count  else ""
-        additional_message = f'Добавлен товар {oi.product.name} в количестве {int(oi.count)}шт.{max_count_message} на {oi.sum}₽\n\n{order.info}'
+        additional_message = f'Добавлен товар {oi.product.name} в количестве {int(oi.count)}шт.{max_count_message} на {oi.sum_int} ₽\n\n{order.info}'
 
         self.send_root_menu(update, True, additional_message=additional_message)
 
