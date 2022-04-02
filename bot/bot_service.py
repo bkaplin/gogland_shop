@@ -3,7 +3,6 @@ import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
 from django.conf import settings
-from aiogram import types
 
 from bot.models import Chat
 from order.models import Order, OrderItem
