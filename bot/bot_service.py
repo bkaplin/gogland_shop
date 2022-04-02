@@ -37,7 +37,7 @@ class BotService:
                 user=local_user,
                 tg_id=user.id
             )
-        logger.info("Пользователь %s начал разговор", user.first_name)
+        logger.info(f"Пользователь {user.id}:{user.first_name} зашел")
 
         orders_in_cart = local_user.orders.filter(in_cart=True)
         for order in orders_in_cart:
@@ -105,13 +105,21 @@ class BotService:
         if variant.startswith('back_to'):
             variant = variant.replace('back_to', '')
         elif variant == 'exit':
+            if order:
+                order.cancel_order_n_recalculate_rests()
+                logger.info(f"Пользователь {user.id}:{user.first_name} отменил заказ №{order.pk}")
+
             query.edit_message_text(text="Приходите еще")
+
+            logger.info(f"Пользователь {user.id}:{user.first_name} вышел")
             return ConversationHandler.END
         elif variant == 'confirm' and order:
             order.in_cart = False
             order.update_sum()
             order.recalculate_rests()
             query.edit_message_text(text=f"Заказ №{order.pk} на {order.total_int} ₽ оформлен.")
+
+            logger.info(f"Пользователь {user.id}:{user.first_name} оформил заказ №{order.pk} на {order.total_int} ₽")
             return
         elif variant.startswith('buy'):
             variant = variant.replace('buy', '')
@@ -160,7 +168,6 @@ class BotService:
 
     def text(self, update, context):
         text_received = update.message.text
-        print(text_received)
         user = update.message.from_user
         local_user = User.objects.filter(tg_id=user.id).first()
         if not local_user:
@@ -177,11 +184,12 @@ class BotService:
         oi.count += valid_count
         oi.in_process = False
         oi.save()
+
+        logger.info(f"Пользователь {user.id}:{user.first_name} добавил продукт {oi.product.pk}:{oi.product.name} в количестве {valid_count} шт. на сумму {oi.product.price * valid_count} ₽")
+
         max_count = count >= oi.product.rest
         oi.reduce_rest(valid_count)
         order.update_sum()
-
-        # order.combine_items()
 
         max_count_message = "(Максимальное количество)" if max_count  else ""
         additional_message = f'Добавлен товар {oi.product.name} в количестве {int(oi.count)}шт.{max_count_message} на {oi.sum_int} ₽\n\n{order.info}'
