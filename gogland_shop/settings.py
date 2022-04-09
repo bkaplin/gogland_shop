@@ -131,3 +131,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static/")
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 TG_TOKEN = '5218097552:AAHZHgM-PtJUfGbvPuVWMh7wq1q7ffTQiOA'
+
+ADMIN_TG_IDS = [
+    '273553669',  # БК
+    '363876661',  # АК
+]

@@ -1,5 +1,6 @@
 import logging
 
+import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
 from django.conf import settings
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class BotService:
+
+    def __init__(self):
+        self.bot = telegram.Bot(token=settings.TG_TOKEN)
 
     def start(self, update, _):
         """Вызывается по команде `/start`."""
@@ -119,6 +123,12 @@ class BotService:
             query.edit_message_text(text=f"Заказ №{order.pk} на {order.total_int} ₽ оформлен.")
 
             logger.info(f"Пользователь {user.id}:{user.first_name} оформил заказ №{order.pk} на {order.total_int} ₽")
+
+            for tg_id in settings.ADMIN_TG_IDS:
+                self.bot.send_message(
+                    text=f"Сделан заказ №{order.pk} на {order.total_int} ₽ от {order.user}\n\n{order.info}",
+                    chat_id=tg_id)
+
             return
         elif variant.startswith('buy'):
             variant = variant.replace('buy', '')
