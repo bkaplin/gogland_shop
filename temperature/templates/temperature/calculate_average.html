@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Title</title>
+
+        <style>
+            .hidden {
+                display: None;
+            }
+            .main {
+                display: block;
+            }
+            .form-div {
+                display: flex;
+                align-self: center;
+                justify-content: center;
+            }
+            .form-div form {
+                display: flex;
+                flex-direction: column;
+            }
+            .results {
+                display: block;
+                justify-content: center;
+            }
+            .res-title {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .res-vars {
+                display: flex;
+                justify-content: center;
+                align-items: baseline;
+            }
+            .mr-10 {
+                margin-right: 10px;
+            }
+            .res-body {
+                display: block;
+                width: 200px;
+                text-align-last: justify;
+            }
+        </style>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    </head>
+    <body>
+        <div class="main">
+            <div class="form-div">
+                <form id="data_form" method="post">
+                    {% csrf_token %}
+                    {{ form.data }}
+                    <button type="submit" id="calculate">Жмак</button>
+                </form>
+            </div>
+            <div id="errors" class="results hidden"></div>
+            <div id="results" class="results hidden">
+                <div class="res-title">
+                    <h2>Результаты</h2>
+                </div>
+                <div class="res-vars">
+                    <div class="mr-10">
+                        <h3>Почва:</h3>
+                    </div>
+                    <div class="res-body">
+                        Среднее: <span id="p_aver"></span><br>
+                        Минимальное: <span id="p_min"></span><br>
+                        Максимальное: <span id="p_max"></span><br>
+                    </div>
+                </div>
+                <div class="res-vars">
+                    <div class="mr-10">
+                        <h3>Будка:</h3>
+                    </div>
+                    <div class="res-body">
+                        Среднее: <span id="b_aver"></span><br>
+                        Минимальное: <span id="b_min"></span><br>
+                        Максимальное: <span id="b_max"></span><br>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            $(document).ready(function () {
+                let errorsDiv = $('#errors');
+                let resultsDiv = $('#results');
+                $('#calculate').on('click', function (e) {
+                    e.preventDefault()
+                    let data = $('#data_form').serialize();
+                    $.ajax({
+                        type: 'POST',
+                        url: document.URL,
+                        data: data,
+                        success: function (response) {
+                            let errors = response.errors;
+                            if (!!errors) {
+                                errorsDiv.html(errors);
+                                errorsDiv.removeClass('hidden');
+                                resultsDiv.addClass('hidden');
+                            }
+                            else {
+                                let res = response.result;
+                                $('#p_aver').html(res.pochva.average);
+                                $('#p_min').html(res.pochva.min);
+                                $('#p_max').html(res.pochva.max);
+
+                                $('#b_aver').html(res.bydka.average);
+                                $('#b_min').html(res.bydka.min);
+                                $('#b_max').html(res.bydka.max);
+
+                                resultsDiv.removeClass('hidden');
+                                errorsDiv.addClass('hidden');
+                            }
+                        },
+                        error: function (response) {
+                            console.log(response);
+                        }
+
+                    })
+                })
+            })
+        </script>
+
+    </body>
+</html>
