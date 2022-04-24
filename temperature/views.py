@@ -80,13 +80,13 @@ class CalculateAverage(TemplateView):
             res = {
                 'pochva': {
                     'average': round(sum(pochva) / len_pochva, 1),
-                    'min': min(pochva_min) if pochva_min else -999,
-                    'max': max(pochva_max) if pochva_max else 999,
+                    'min': min(pochva_min[:4]) if pochva_min else -999,
+                    'max': max(pochva_max[4:]) if pochva_max else 999,
                 },
                 'bydka': {
                     'average': round(sum(bydka) / len_bydka, 1),
-                    'min': min(bydka_min) if bydka_min else -999,
-                    'max': max(bydka_max) if bydka_max else 999,
+                    'min': min(bydka_min[:4]) if bydka_min else -999,
+                    'max': max(bydka_max[4:]) if bydka_max else 999,
                 }
             }
         else:
