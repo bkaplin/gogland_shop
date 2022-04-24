@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'order',
     'product',
     'user',
-    'bot'
+    'bot',
+    'temperature'
 ]
 
 MIDDLEWARE = [
