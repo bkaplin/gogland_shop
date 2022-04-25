@@ -6,7 +6,7 @@
 
         <style>
             body {
-                background-color: #dbd3d3;
+                background-color: #f8f6f6;
             }
             .hidden {
                 display: None !important;
@@ -24,8 +24,9 @@
                 flex-direction: column;
             }
             .results {
-                display: block;
-                justify-content: center;
+                display: flex;
+                flex-direction: column;
+                align-content: center;
             }
             .res-title {
                 display: flex;
@@ -51,11 +52,49 @@
             }
             .submit-btn {
                 margin-top: 10px;
-                background-color: #d9f3ff;
+                background-color: #D6D6D6;
                 height: 30px;
-                border-radius: 4px;
-                border-color: #0886eb;
+                border-radius: 8px;
+                border-color: #D6D6D6;
                 border-style: hidden;
+                cursor: pointer;
+                box-shadow: 0 0 10px #dddddd;
+            }
+            #data_form textarea:focus-visible {
+                outline: none;
+            }
+            #data_form textarea {
+                border-radius: 8px;
+                border: none;
+                resize: none;
+                box-shadow: 0 0 10px #dddddd;
+            }
+            #data_form textarea::-webkit-scrollbar {
+                width: 10px;
+                background-color: #f9f9fd;
+            }
+
+            #data_form textarea::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                background-color: #D6D6D6;
+            }
+
+            #data_form textarea::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2);
+                border-radius: 10px;
+                background-color: #f9f9fd;
+            }
+            .results-container {
+                width: 400px;
+                display: inline-flex;
+                flex-direction: column;
+                align-self: center;
+                margin-top: 10px;
+                border-radius: 8px;
+                background-color: #d8f9d8;
+                box-shadow: 0 0 10px #dddddd;
+                margin-bottom: 20px;
+                padding: 12px;
             }
         </style>
 
@@ -72,27 +111,29 @@
             </div>
             <div id="errors" class="results hidden"></div>
             <div id="results" class="results hidden">
-                <div class="res-title">
-                    <h2>Результаты</h2>
-                </div>
-                <div class="res-vars">
-                    <div class="mr-10">
-                        <h3>Почва:</h3>
+                <div class="results-container">
+                    <div class="res-title">
+                        <h2>Результаты</h2>
                     </div>
-                    <div class="res-body">
-                        Среднее: <span id="p_aver"></span><br>
-                        Минимальное: <span id="p_min"></span><br>
-                        Максимальное: <span id="p_max"></span><br>
+                    <div class="res-vars">
+                        <div class="mr-10">
+                            <h3>Почва:</h3>
+                        </div>
+                        <div class="res-body">
+                            Среднее: <span id="p_aver"></span><br>
+                            Минимальное: <span id="p_min"></span><br>
+                            Максимальное: <span id="p_max"></span><br>
+                        </div>
                     </div>
-                </div>
-                <div class="res-vars">
-                    <div class="mr-10">
-                        <h3>Воздух:</h3>
-                    </div>
-                    <div class="res-body">
-                        Среднее: <span id="b_aver"></span><br>
-                        Минимальное: <span id="b_min"></span><br>
-                        Максимальное: <span id="b_max"></span><br>
+                    <div class="res-vars">
+                        <div class="mr-10">
+                            <h3>Воздух:</h3>
+                        </div>
+                        <div class="res-body">
+                            Среднее: <span id="b_aver"></span><br>
+                            Минимальное: <span id="b_min"></span><br>
+                            Максимальное: <span id="b_max"></span><br>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -104,6 +145,7 @@
                 let resultsDiv = $('#results');
                 $('#calculate').on('click', function (e) {
                     e.preventDefault()
+                    resultsDiv.addClass('hidden');
                     let data = $('#data_form').serialize();
                     $.ajax({
                         type: 'POST',
