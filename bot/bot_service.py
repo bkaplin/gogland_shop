@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
 from django.conf import settings
 
-from bot.models import Chat
+from bot.models import Chat, CardNumber
 from order.models import Order, OrderItem
 from product.models import Category, Product
 from user.models import User
@@ -21,6 +21,8 @@ class BotService:
 
     def __init__(self):
         self.bot = telegram.Bot(token=settings.TG_TOKEN)
+        self.cart_number = CardNumber.objects.filter(is_active=True).first()
+        self.cart_info_message = f"Оплатить по номеру карты \n\n `{self.cart_number.number}`\n (нажать, чтобы скопировать)" if self.cart_number else ""
 
     def start(self, update, _):
         """Вызывается по команде `/start`."""
@@ -120,7 +122,9 @@ class BotService:
             order.in_cart = False
             order.update_sum()
             order.recalculate_rests()
-            query.edit_message_text(text=f"Заказ №{order.pk} на {order.total_int} ₽ оформлен.")
+            query.edit_message_text(
+                text=f"Заказ №{order.pk} на {order.total_int} ₽ оформлен. {self.cart_info_message}",
+                parse_mode=telegram.ParseMode.MARKDOWN)
 
             logger.info(f"Пользователь {user.id}:{user.first_name} оформил заказ №{order.pk} на {order.total_int} ₽")
 

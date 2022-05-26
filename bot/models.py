@@ -28,3 +28,16 @@ class Message(models.Model):
 
     def __str__(self):
         return f'{self.chat.user}: {self.text}' if self.chat and self.chat.user else str(self.pk)
+
+
+class CardNumber(models.Model):
+    number = models.CharField(max_length=255, verbose_name=l_(u'Номер карты'))
+    owner = models.CharField(max_length=255, verbose_name=l_(u'Владелец'))
+    is_active = models.BooleanField(verbose_name=l_(u'Активна'), default=False)
+
+    class Meta:
+        verbose_name = l_(u'Номер карты (админ)')
+        verbose_name_plural = l_(u'Номера карт (админ)')
+
+    def __str__(self):
+        return f'{self.number} {self.owner}'
