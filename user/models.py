@@ -19,7 +19,7 @@ class User(AbstractBaseUser):
         blank=True
     )
     first_name = models.CharField(l_('имя'), default='', max_length=255, blank=True)
-    last_name = models.CharField(l_('фамилия'), default='', max_length=255, blank=True)
+    last_name = models.CharField(l_('фамилия'), default='', max_length=255, blank=True, null=True)
     tg_id = models.CharField(max_length=255, verbose_name=l_(u'ID пользователя в TG'), blank=True, null=True)
 
     class Meta:
