@@ -56,10 +56,10 @@ class BotService:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         work_time = ShopSettings.objects.first().work_time
-        work_time_text = f'*Время работы магазина {work_time}*'
+        work_time_text = f'*** Время работы магазина {work_time} ***'
         # Отправляем сообщение с текстом и добавленной клавиатурой `reply_markup`
         update.message.reply_text(
-            text=f"{work_time_text}{additional_message}Выберите товар", reply_markup=reply_markup
+            text=f"{work_time_text}\n{additional_message}Выберите товар", reply_markup=reply_markup
         )
 
     def get_root_menu(self, user_has_order_in_cart):
@@ -94,7 +94,7 @@ class BotService:
 
     def button(self, update, _):
         work_time = ShopSettings.objects.first().work_time
-        work_time_text = f'*Время работы магазина {work_time}*'
+        work_time_text = f'*** Время работы магазина {work_time} ***'
 
         query = update.callback_query
         variant = query.data
