@@ -41,3 +41,11 @@ class CardNumber(models.Model):
 
     def __str__(self):
         return f'{self.number} {self.owner}'
+
+
+class ShopSettings(models.Model):
+    work_time = models.CharField(verbose_name=l_(u'Время работы магазина сегодня'), max_length=255, default=u'11 - 19')
+
+    class Meta:
+        verbose_name = l_(u'Настройки магазина')
+        verbose_name_plural = verbose_name

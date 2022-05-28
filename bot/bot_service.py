@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
 from django.conf import settings
 
-from bot.models import Chat, CardNumber
+from bot.models import Chat, CardNumber, ShopSettings
 from order.models import Order, OrderItem
 from product.models import Category, Product
 from user.models import User
@@ -54,9 +54,12 @@ class BotService:
     def send_root_menu(self, update, user_has_order_in_cart, additional_message=''):
         keyboard = self.get_root_menu(user_has_order_in_cart)
         reply_markup = InlineKeyboardMarkup(keyboard)
+
+        work_time = ShopSettings.objects.first().work_time
+        work_time_text = f'*Время работы магазина {work_time}*'
         # Отправляем сообщение с текстом и добавленной клавиатурой `reply_markup`
         update.message.reply_text(
-            text=f"{additional_message}Выберите товар", reply_markup=reply_markup
+            text=f"{work_time_text}{additional_message}Выберите товар", reply_markup=reply_markup
         )
 
     def get_root_menu(self, user_has_order_in_cart):
@@ -90,6 +93,9 @@ class BotService:
         return l
 
     def button(self, update, _):
+        work_time = ShopSettings.objects.first().work_time
+        work_time_text = f'*Время работы магазина {work_time}*'
+
         query = update.callback_query
         variant = query.data
 
@@ -169,7 +175,7 @@ class BotService:
         query.answer()
         # редактируем сообщение, тем самым кнопки
         # в чате заменятся на этот ответ.
-        query.edit_message_text(text=f"{additional_message}{category.name if category else 'Выберете товар'}", reply_markup=reply_markup)
+        query.edit_message_text(text=f"{work_time_text}\n{additional_message}{category.name if category else 'Выберете товар'}", reply_markup=reply_markup)
 
     @staticmethod
     def help_command(update, _):
