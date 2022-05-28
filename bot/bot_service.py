@@ -37,7 +37,7 @@ class BotService:
             print("NNOOOOOTTTT IIIIDDDD!!!!")
         logger.info(f"!!! user_id {user_id}:{user.first_name} жмакнул старт")
         local_user = User.objects.filter(tg_id=user_id).first()
-        logger.info(f"RTRTTRTRTRTRTRTRTRTRTRTRTRTRT {local_user}")
+        logger.info(f"RTRTTRTRTRTRTRTRTRTRTRTRTRTRT {local_user}, {self.dotval(user, 'username')}")
         if not local_user:
             local_user, created = User.objects.get_or_create(
                 tg_id=user_id,
