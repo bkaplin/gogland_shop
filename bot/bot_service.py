@@ -24,25 +24,30 @@ class BotService:
         self.cart_number = CardNumber.objects.filter(is_active=True).first()
         self.cart_info_message = f"Оплатить по номеру карты \n\n `{self.cart_number.number}`\n (нажать, чтобы скопировать)" if self.cart_number else ""
 
+    @staticmethod
+    def dotval(obj, attr, default=None):
+        return getattr(obj, attr) if hasattr(obj, attr) else default
+
     def start(self, update, _):
         """Вызывается по команде `/start`."""
         # Получаем пользователя, который запустил команду `/start`
         user = update.message.from_user
-        local_user = User.objects.filter(tg_id=user.id).first()
+        user_id = self.dotval(user, 'id')
+        local_user = User.objects.filter(tg_id=user_id).first()
         if not local_user:
             local_user, created = User.objects.get_or_create(
-                tg_id=user.id,
-                last_name=user.last_name,
-                first_name=user.first_name,
-                username=user.username
+                tg_id=user_id,
+                last_name=self.dotval(user, 'last_name'),
+                first_name=self.dotval(user, 'first_name'),
+                username=self.dotval(user, 'username')
             )
-        local_chat = Chat.objects.filter(tg_id=user.id).first()
+        local_chat = Chat.objects.filter(tg_id=user_id).first()
         if not local_chat:
             Chat.objects.create(
                 user=local_user,
-                tg_id=user.id
+                tg_id=user_id
             )
-        logger.info(f"Пользователь {user.id}:{user.first_name} зашел")
+        logger.info(f"Пользователь {user_id}:{user.first_name} зашел")
 
         orders_in_cart = local_user.orders.filter(in_cart=True)
         for order in orders_in_cart:
@@ -100,13 +105,14 @@ class BotService:
         variant = query.data
 
         user = query.from_user
-        local_user = User.objects.filter(tg_id=user.id).first()
+        user_id = self.dotval(user, 'id')
+        local_user = User.objects.filter(tg_id=user_id).first()
         if not local_user:
             local_user, created = User.objects.get_or_create(
-                tg_id=user.id,
-                last_name=user.last_name,
-                first_name=user.first_name,
-                username=user.username
+                tg_id=user_id,
+                last_name=self.dotval(user, 'last_name'),
+                first_name=self.dotval(user, 'first_name'),
+                username=self.dotval(user, 'username')
             )
 
         buy = False
@@ -118,11 +124,11 @@ class BotService:
         elif variant == 'exit':
             if order:
                 order.cancel_order_n_recalculate_rests()
-                logger.info(f"Пользователь {user.id}:{user.first_name} отменил заказ №{order.pk}")
+                logger.info(f"Пользователь {user_id}:{user.first_name} отменил заказ №{order.pk}")
 
             query.edit_message_text(text="Приходите еще")
 
-            logger.info(f"Пользователь {user.id}:{user.first_name} вышел")
+            logger.info(f"Пользователь {user_id}:{user.first_name} вышел")
             return ConversationHandler.END
         elif variant == 'confirm' and order:
             order.in_cart = False
@@ -132,7 +138,7 @@ class BotService:
                 text=f"Заказ №{order.pk} на {order.total_int} ₽ оформлен. {self.cart_info_message}",
                 parse_mode=telegram.ParseMode.MARKDOWN)
 
-            logger.info(f"Пользователь {user.id}:{user.first_name} оформил заказ №{order.pk} на {order.total_int} ₽")
+            logger.info(f"Пользователь {user_id}:{user.first_name} оформил заказ №{order.pk} на {order.total_int} ₽")
 
             for tg_id in settings.ADMIN_TG_IDS:
                 self.bot.send_message(
@@ -188,7 +194,8 @@ class BotService:
     def text(self, update, context):
         text_received = update.message.text
         user = update.message.from_user
-        local_user = User.objects.filter(tg_id=user.id).first()
+        user_id = self.dotval(user, 'id')
+        local_user = User.objects.filter(tg_id=user_id).first()
         if not local_user:
             return
         order = local_user.orders.filter(in_cart=True).first()
@@ -204,7 +211,7 @@ class BotService:
         oi.in_process = False
         oi.save()
 
-        logger.info(f"Пользователь {user.id}:{user.first_name} добавил продукт {oi.product.pk}:{oi.product.name} в количестве {valid_count} шт. на сумму {oi.product.price * valid_count} ₽")
+        logger.info(f"Пользователь {user_id}:{user.first_name} добавил продукт {oi.product.pk}:{oi.product.name} в количестве {valid_count} шт. на сумму {oi.product.price * valid_count} ₽")
 
         max_count = count >= oi.product.rest
         oi.reduce_rest(valid_count)
