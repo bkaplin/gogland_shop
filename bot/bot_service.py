@@ -33,21 +33,14 @@ class BotService:
         # Получаем пользователя, который запустил команду `/start`
         user = update.message.from_user
         user_id = self.dotval(user, 'id')
-        if not user_id:
-            print("NNOOOOOTTTT IIIIDDDD!!!!")
-        logger.info(f"!!! user_id {user_id}:{user.first_name} жмакнул старт")
         local_user = User.objects.filter(tg_id=user_id).first()
-        logger.info(f"RTRTTRTRTRTRTRTRTRTRTRTRTRTRT {local_user}, {self.dotval(user, 'username')}")
         if not local_user:
-            try:
-                local_user, created = User.objects.get_or_create(
-                    tg_id=user_id,
-                    last_name=self.dotval(user, 'last_name'),
-                    first_name=self.dotval(user, 'first_name'),
-                    username=self.dotval(user, 'username')
-                )
-            except Exception as e:
-                logger.error(e)
+            local_user, created = User.objects.get_or_create(
+                tg_id=user_id,
+                last_name=self.dotval(user, 'last_name', ''),
+                first_name=self.dotval(user, 'first_name'),
+                username=self.dotval(user, 'username', '')
+            )
         local_chat = Chat.objects.filter(tg_id=user_id).first()
         if not local_chat:
             Chat.objects.create(
