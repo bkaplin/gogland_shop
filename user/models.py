@@ -11,6 +11,8 @@ PHONE_VALIDATOR = RegexValidator(regex=r'[0-9( )\-+]{6,20}',
 
 
 class User(AbstractBaseUser):
+    USERNAME_FIELD = 'tg_id'
+
     username = models.CharField(l_('username'), max_length=255, blank=True, null=True)
     phone = models.CharField(
         l_(u'Контактный телефон'), max_length=30, validators=[PHONE_VALIDATOR], default='',
