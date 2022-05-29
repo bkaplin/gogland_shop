@@ -23,7 +23,7 @@ class Order(models.Model):
         verbose_name_plural = l_(u'Заказы')
 
     def __str__(self):
-        return f'{self.user.full_name}: {self.pk}'
+        return f'{self.user.full_name if self.user else "DELETED"}: {self.pk}'
 
     def update_sum(self):
         total, total_profit = 0, 0
@@ -77,7 +77,7 @@ class OrderItem(models.Model):
         verbose_name_plural = l_(u'Позиции')
 
     def __str__(self):
-        return f'order {self.order.pk} by {self.order.user.full_name}: {self.product.name if self.product else self.pk} {self.count}шт.'
+        return f'order {self.order.pk} by {self.order.user.full_name if self.order.user else "DELETED"}: {self.product.name if self.product else self.pk} {self.count}шт.'
 
     @property
     def sum(self):

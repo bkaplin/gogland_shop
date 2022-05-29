@@ -51,9 +51,9 @@ class OrderAdmin(admin.ModelAdmin):
     mark_closed.short_description = _(u'Закрыть')
 
     def mark_cancelled(self, request, queryset):
-        queryset.update(cancelled=True, is_closed=True)
+        for order in queryset:
+            order.cancel_order_n_recalculate_rests()
     mark_cancelled.short_description = _(u'Отменить')
-
 
     def mark_unpayed(self, request, queryset):
         queryset.update(is_payed=False, is_closed=False)
