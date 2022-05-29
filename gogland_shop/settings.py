@@ -137,3 +137,7 @@ ADMIN_TG_IDS = [
     '273553669',  # БК
     '363876661',  # АК
 ]
+
+file_path = os.path.join(BASE_DIR, 'gogland_shop/local_settings.py')
+if os.path.exists(file_path):
+    from gogland_shop.local_settings import *
