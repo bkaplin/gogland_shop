@@ -146,6 +146,10 @@ class BotService:
                     chat_id=tg_id)
 
             return
+        elif variant == 'confirm' and not order:
+            # это происходит в случае, если чувак создал корзину и забыл,
+            # а заказ уже отменен через админку, но он жмет кнопку оформить
+            variant = None
         elif variant.startswith('buy'):
             variant = variant.replace('buy', '')
             buy = True
