@@ -135,7 +135,7 @@ class BotService:
             order.update_sum()
             order.recalculate_rests()
             query.edit_message_text(
-                text=f"Заказ №{order.pk} на {order.total_int} ₽ оформлен. {self.cart_info_message}",
+                text=f"Заказ оформлен.\n{order.info}{self.cart_info_message}",
                 parse_mode=telegram.ParseMode.MARKDOWN)
 
             logger.info(f"Пользователь {user_id}:{user.first_name} оформил заказ №{order.pk} на {order.total_int} ₽")
@@ -157,7 +157,7 @@ class BotService:
         if buy:
             product = Product.objects.filter(pk=variant).first()
             if product:
-                query.edit_message_text(text=f'Сколько нужно "{product.name}"? Отправьте количество.')
+                query.edit_message_text(text=f'Сколько нужно "{product.name}"? Отправьте количество.\n(0 - для отмены)')
                 order, o_created = Order.objects.get_or_create(
                     user=local_user, in_cart=True
                 )
@@ -170,7 +170,7 @@ class BotService:
                 oi.save()
                 return
         category = None
-        user_has_order_in_cart = local_user.orders.filter(in_cart=True).exclude(items__count__lt=1).exists()
+        user_has_order_in_cart = local_user.orders.filter(in_cart=True, items__isnull=False).exclude(items__count__lt=1).exists()
         if variant:
             category = Category.objects.filter(pk=variant).first()
             buttons = self.get_buttons(category, user_has_order_in_cart)
@@ -208,7 +208,12 @@ class BotService:
         if not oi:
             return
         count = float(text_received)
-        if count <= 0:
+        if count == 0:
+            oi.delete()
+            additional_message = f'{order.info}'
+            self.send_root_menu(update, user_has_order_in_cart=True and order.items.exists(), additional_message=additional_message)
+            return
+        if count < 0:
             raise Exception
         valid_count = count if count <= oi.product.rest else oi.product.rest
         oi.count += valid_count
@@ -221,10 +226,10 @@ class BotService:
         oi.reduce_rest(valid_count)
         order.update_sum()
 
-        max_count_message = "(Максимальное количество)" if max_count  else ""
+        max_count_message = "(Максимальное количество)" if max_count else ""
         additional_message = f'Добавлен товар {oi.product.name} в количестве {int(oi.count)}шт.{max_count_message} на {oi.sum_int} ₽\n\n{order.info}'
 
-        self.send_root_menu(update, True, additional_message=additional_message)
+        self.send_root_menu(update, user_has_order_in_cart=True and order.items.exists(), additional_message=additional_message)
 
         # update.message.reply_text('an error occured')
 

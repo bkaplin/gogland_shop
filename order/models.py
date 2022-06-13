@@ -58,7 +58,7 @@ class Order(models.Model):
     def info(self):
         items = self.items.filter(sync=True, count__gt=0)
         items_info = '\n'.join([i.info for i in items])
-        return f'Заказ №{self.pk}:\n{items_info}\n\nИтого: {self.total_int} ₽\n\n'
+        return f'Заказ №{self.pk}:\n{items_info}\n\nИтого: {self.total_int} ₽\n\n' if items.exists() else ''
 
     @property
     def total_int(self):
