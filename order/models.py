@@ -18,6 +18,8 @@ class Order(models.Model):
     cancelled = models.BooleanField(verbose_name=l_(u'Отменён'), default=False)
     profit = models.FloatField(verbose_name=l_(u'Прибыль'), default=0)
 
+    comment = models.CharField(verbose_name=l_(u'Комментарий'), max_length=500, blank=True, null=True)
+
     class Meta:
         verbose_name = l_(u'Заказ')
         verbose_name_plural = l_(u'Заказы')

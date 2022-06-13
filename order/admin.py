@@ -1,6 +1,18 @@
 from django.contrib import admin
+from django.db.models import Sum
+
 from order.models import Order, OrderItem
 from django.utils.translation import gettext as _, gettext_lazy as l_
+from django.contrib.admin.views.main import ChangeList
+
+
+class OrderChangeList(ChangeList):
+
+    def get_results(self, *args, **kwargs):
+        super(OrderChangeList, self).get_results(*args, **kwargs)
+        q = self.result_list.aggregate(total_sum=Sum('total'), total_profit=Sum('profit'))
+        self.total_sum = q['total_sum']
+        self.total_profit = q['total_profit']
 
 
 class OrderAdmin(admin.ModelAdmin):
@@ -28,6 +40,9 @@ class OrderAdmin(admin.ModelAdmin):
         'user__last_name',
         'user__tg_id',
     ]
+
+    def get_changelist(self, request):
+        return OrderChangeList
 
     class OrderItemInline(admin.TabularInline):
         model = OrderItem
