@@ -35,10 +35,11 @@ class Category(models.Model):
 
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name=l_(u'Название продукта'), null=True, blank=True)
-    category = models.ForeignKey(Category, verbose_name=l_('Категория'), related_name='products', on_delete=SET_NULL, null=True)
+    category = models.ForeignKey(Category, verbose_name=l_(u'Категория'), related_name='products', on_delete=SET_NULL, null=True)
     rest = models.IntegerField(verbose_name=l_(u'Остаток'), default=0)
     sb_price = models.FloatField(verbose_name=l_(u'Цена закупки'), default=0)
     price = models.FloatField(verbose_name=l_(u'Цена'), default=0)
+    is_active = models.BooleanField(verbose_name=l_(u'Активен для продажи'), default=True)
 
     class Meta:
         verbose_name = l_(u'Продукт')

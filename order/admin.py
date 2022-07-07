@@ -13,6 +13,10 @@ class OrderChangeList(ChangeList):
         q = self.result_list.aggregate(total_sum=Sum('total'), total_profit=Sum('profit'))
         self.total_sum = q['total_sum']
         self.total_profit = q['total_profit']
+        q_all = self.model.objects.filter(is_payed=True, is_closed=True).aggregate(total_sum=Sum('total'),
+                                                                                   total_profit=Sum('profit'))
+        self.TOTAL_SUM = q_all['total_sum']
+        self.TOTAL_PROFIT = q_all['total_profit']
 
 
 class OrderAdmin(admin.ModelAdmin):
@@ -25,7 +29,8 @@ class OrderAdmin(admin.ModelAdmin):
         'is_closed',
         'cancelled',
         'total',
-        'profit'
+        'profit',
+        'comment',
     ]
     list_filter = [
         'user',

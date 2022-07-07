@@ -10,9 +10,11 @@ class ProductAdmin(admin.ModelAdmin):
         'rest',
         'sb_price',
         'price',
+        'is_active',
     ]
     list_filter = [
         'category',
+        'is_active',
     ]
     search_fields = [
         'id',

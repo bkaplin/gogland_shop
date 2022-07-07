@@ -9,4 +9,8 @@
         <span style="margin-right: 15px">Общая сумма заказов: {{ cl.total_sum }}</span>
         <span style="margin-right: 15px">Прибыль: {{ cl.total_profit }}</span>
     </div>
+    <div style="padding: 10px;display: flex;justify-content: flex-end;align-items: center;">
+        <span style="margin-right: 15px">Общая сумма ВСЕХ заказов: {{ cl.TOTAL_SUM }}</span>
+        <span style="margin-right: 15px">Прибыль (ВСЯ): {{ cl.TOTAL_PROFIT }}</span>
+    </div>
 {% endblock %}
