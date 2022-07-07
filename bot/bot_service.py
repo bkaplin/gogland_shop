@@ -33,6 +33,9 @@ class BotService:
         # Получаем пользователя, который запустил команду `/start`
         user = update.message.from_user
         user_id = self.dotval(user, 'id')
+        if settings.CORRECT_USERS and str(user_id) not in settings.CORRECT_USERS:
+            raise Exception
+
         local_user = User.objects.filter(tg_id=user_id).first()
         if not local_user:
             local_user, created = User.objects.get_or_create(
