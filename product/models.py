@@ -25,7 +25,7 @@ class Category(models.Model):
         child_categories = self.child_categories.all()
 
         if self.products.exists() or not child_categories.exists():
-            return self.products.filter(rest__gt=0).exists()
+            return self.products.filter(rest__gt=0, is_active=True).exists()
 
         for category in child_categories:
             if category.has_products:
