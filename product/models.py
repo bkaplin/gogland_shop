@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext as _, gettext_lazy as l_
 from django.db.models import SET_NULL
@@ -20,11 +20,13 @@ class Category(models.Model):
     def __str__(self):
         return self.name or str(self.pk)
 
-    @property
-    def has_products(self):
+    def has_products(self, user_tg_id=None):
         child_categories = self.child_categories.all()
 
         if self.products.exists() or not child_categories.exists():
+            res_products = self.products.filter(rest__gt=0, is_active=True).exists()
+            if user_tg_id and str(user_tg_id) in settings.VIP_USERS_TG_IDS:
+                res_products = self.products.filter(rest__gt=0).exists()
             return self.products.filter(rest__gt=0, is_active=True).exists()
 
         for category in child_categories:

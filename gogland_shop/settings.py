@@ -138,6 +138,11 @@ ADMIN_TG_IDS = [
     '363876661',  # АК
 ]
 CORRECT_USERS = []
+VIP_USERS_TG_IDS = [
+    '273553669',  # БК
+    '363876661',  # АК
+    '390173153',  # МК
+]
 
 file_path = os.path.join(BASE_DIR, 'gogland_shop/local_settings.py')
 if os.path.exists(file_path):

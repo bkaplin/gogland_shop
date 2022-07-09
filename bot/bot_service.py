@@ -70,8 +70,8 @@ class BotService:
             text=f"{work_time_text}\n{additional_message}Выберите товар", reply_markup=reply_markup
         )
 
-    def get_root_menu(self, user_has_order_in_cart):
-        l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in Category.objects.filter(parent__isnull=True).order_by('position') if c.has_products]
+    def get_root_menu(self, user_has_order_in_cart, user_tg_id=None):
+        l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in Category.objects.filter(parent__isnull=True).order_by('position') if c.has_products(user_tg_id)]
 
         bottom_buttons = []
         if user_has_order_in_cart:
@@ -80,15 +80,20 @@ class BotService:
         l.append(bottom_buttons)
         return l
 
-    def get_buttons(self, category, user_has_order_in_cart):
+    def get_buttons(self, category, user_has_order_in_cart, user_tg_id=None):
         if not category:
             return
         childs_categories = category.child_categories.order_by('position')
+        category_products = category.products.filter(rest__gt=0, is_active=True)
+
+        if user_tg_id and str(user_tg_id) in settings.VIP_USERS_TG_IDS:
+            category_products = category.products.filter(rest__gt=0)
+
         bottom_buttons = []
         if childs_categories.exists():
-            l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories if c.has_products]
+            l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories if c.has_products(user_tg_id)]
         else:
-            l = [[InlineKeyboardButton(f'{p.name} {p.price_int} ₽ (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category.products.filter(rest__gt=0, is_active=True)]
+            l = [[InlineKeyboardButton(f'{p.name} {p.price_int} ₽ (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category_products]
 
         if user_has_order_in_cart:
             bottom_buttons.append(InlineKeyboardButton("Оформить", callback_data=str('confirm')))
@@ -176,7 +181,7 @@ class BotService:
         user_has_order_in_cart = local_user.orders.filter(in_cart=True, items__isnull=False).exclude(items__count__lt=1).exists()
         if variant:
             category = Category.objects.filter(pk=variant).first()
-            buttons = self.get_buttons(category, user_has_order_in_cart)
+            buttons = self.get_buttons(category, user_has_order_in_cart, user_tg_id=user_id)
         else:
             buttons = self.get_root_menu(user_has_order_in_cart)
         reply_markup = InlineKeyboardMarkup(buttons)
