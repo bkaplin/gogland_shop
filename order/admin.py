@@ -29,7 +29,7 @@ class OrderAdmin(admin.ModelAdmin):
         'is_closed',
         'cancelled',
         'total',
-        'profit',
+        'profit_fmt',
         'comment',
     ]
     list_filter = [
@@ -45,6 +45,11 @@ class OrderAdmin(admin.ModelAdmin):
         'user__last_name',
         'user__tg_id',
     ]
+
+    def profit_fmt(self, obj):
+        return round(obj.profit, 2)
+    profit_fmt.short_description = l_(u'Прибыль')
+    profit_fmt.admin_order_field = 'profit'
 
     def get_changelist(self, request):
         return OrderChangeList
