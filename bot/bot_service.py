@@ -123,13 +123,22 @@ class BotService:
             answer_text = query.message.text[:-1]
             if order_id:
                 _order = Order.objects.filter(id=order_id).first()
+                help_text_for_admin = 'Детали в админке'
                 if _order:
                     if variant.startswith('__payed'):
-                        _order.set_payed()
-                        answer_text += settings.PAYED_ICON
+                        if not _order.cancelled:
+                            if not _order.is_payed:
+                                _order.set_payed()
+                            answer_text += settings.PAYED_ICON
+                        else:
+                            answer_text += f'{settings.CANCELLED_ICON} Уже было отменено\n{help_text_for_admin}'
                     elif variant.startswith('__cancel'):
-                        _order.cancel_order_n_recalculate_rests()
-                        answer_text += settings.CANCELLED_ICON
+                        if not _order.is_payed:
+                            if not _order.cancelled:
+                                _order.cancel_order_n_recalculate_rests()
+                            answer_text += settings.CANCELLED_ICON
+                        else:
+                            answer_text += f'{settings.PAYED_ICON} Уже было оплачено\n{help_text_for_admin}'
             query.answer()
             query.edit_message_text(text=answer_text)
             return
