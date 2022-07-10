@@ -72,8 +72,8 @@ class BotService:
 
     def get_order_buttons(self, order_id):
         bottom_buttons = []
-        bottom_buttons.append(InlineKeyboardButton("Оплачено", callback_data=str(f'__payed-{order_id}')))
-        bottom_buttons.append(InlineKeyboardButton("Отменить", callback_data=str(f'__cancel-{order_id}')))
+        bottom_buttons.append(InlineKeyboardButton(f"Оплачено {settings.PAYED_ICON}", callback_data=str(f'__payed-{order_id}')))
+        bottom_buttons.append(InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}')))
         return [bottom_buttons]
 
     def get_root_menu(self, user_has_order_in_cart, user_tg_id=None):
