@@ -70,6 +70,12 @@ class BotService:
             text=f"{work_time_text}\n{additional_message}Выберите товар", reply_markup=reply_markup
         )
 
+    def get_order_buttons(self, order_id):
+        bottom_buttons = []
+        bottom_buttons.append(InlineKeyboardButton("Оплачено", callback_data=str(f'__payed-{order_id}')))
+        bottom_buttons.append(InlineKeyboardButton("Отменить", callback_data=str(f'__cancel-{order_id}')))
+        return [bottom_buttons]
+
     def get_root_menu(self, user_has_order_in_cart, user_tg_id=None):
         l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in Category.objects.filter(parent__isnull=True).order_by('position') if c.has_products(user_tg_id)]
 
@@ -106,11 +112,30 @@ class BotService:
         return l
 
     def button(self, update, _):
-        work_time = ShopSettings.objects.first().work_time
-        work_time_text = f'*** Время работы магазина {work_time} ***'
-
         query = update.callback_query
         variant = query.data
+
+        # если идет работа над заказом со стороны админа (оплачено/отменено)
+        if variant.startswith('__'):
+            order_id = variant.split('-')[-1]
+
+            # берем текст сообщения минус последний символ, в котором значок ⚠
+            answer_text = query.message.text[:-1]
+            if order_id:
+                _order = Order.objects.filter(id=order_id).first()
+                if _order:
+                    if variant.startswith('__payed'):
+                        _order.set_payed()
+                        answer_text += settings.PAYED_ICON
+                    elif variant.startswith('__cancel'):
+                        _order.cancel_order_n_recalculate_rests()
+                        answer_text += settings.CANCELLED_ICON
+            query.answer()
+            query.edit_message_text(text=answer_text)
+            return
+
+        work_time = ShopSettings.objects.first().work_time
+        work_time_text = f'*** Время работы магазина {work_time} ***'
 
         user = query.from_user
         user_id = self.dotval(user, 'id')
@@ -148,10 +173,14 @@ class BotService:
 
             logger.info(f"Пользователь {user_id}:{user.first_name} оформил заказ №{order.pk} на {order.total_int} ₽")
 
+            order_buttons = self.get_order_buttons(order.id)
+            order_reply_markup = InlineKeyboardMarkup(order_buttons)
             for tg_id in settings.ADMIN_TG_IDS:
                 self.bot.send_message(
-                    text=f"Сделан заказ №{order.pk} на {order.total_int} ₽ от {order.user}\n\n{order.info}",
-                    chat_id=tg_id)
+                    text=f"Сделан заказ №{order.pk} на {order.total_int} ₽ от {order.user}\n\n{order.info}{settings.WARNING_ICON}",
+                    chat_id=tg_id,
+                    reply_markup=order_reply_markup
+                )
 
             return
         elif variant == 'confirm' and not order:

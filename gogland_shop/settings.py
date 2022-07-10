@@ -144,6 +144,10 @@ VIP_USERS_TG_IDS = [
     '390173153',  # МК
 ]
 
+WARNING_ICON = '⚠'
+PAYED_ICON = '✅'
+CANCELLED_ICON = '❌'
+
 file_path = os.path.join(BASE_DIR, 'gogland_shop/local_settings.py')
 if os.path.exists(file_path):
     from gogland_shop.local_settings import *

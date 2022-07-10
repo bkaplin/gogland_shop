@@ -27,6 +27,12 @@ class Order(models.Model):
     def __str__(self):
         return f'{self.user.full_name if self.user else "DELETED"}: {self.pk}'
 
+    def set_payed(self):
+        self.is_payed = True
+        self.is_closed = True
+        self.cancelled = False
+        self.save(update_fields=['is_payed', 'is_closed', 'cancelled'])
+
     def update_sum(self):
         total, total_profit = 0, 0
         for item in self.items.all():
@@ -72,7 +78,7 @@ class OrderItem(models.Model):
     product = models.ForeignKey(Product, verbose_name=l_(u'Продукт'), on_delete=SET_NULL, null=True)
     count = models.IntegerField(verbose_name=l_('Количество'), default=0)
     sync = models.BooleanField(verbose_name=l_(u'Синхронизирован'), default=False)
-    in_process = models.BooleanField(verbose_name=l_(u'В процессе изменения количества'), default=False)
+    in_process = models.BooleanField(verbose_name=l_(u'В процессе изменения кол-ва'), default=False)
 
     class Meta:
         verbose_name = l_(u'Позиция')

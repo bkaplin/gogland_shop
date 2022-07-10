@@ -106,9 +106,9 @@ class OrderItemAdmin(admin.ModelAdmin):
         'sync',
         'in_process',
         'sum',
+        'order_created'
     ]
     list_filter = [
-        'order',
         'product',
         'sync',
         'in_process',
@@ -119,6 +119,11 @@ class OrderItemAdmin(admin.ModelAdmin):
         'product__name',
         'product__id'
     ]
+
+    def order_created(self, obj):
+        return obj.order.created
+    order_created.short_description = l_(u'Дата заказа')
+    order_created.admin_order_field = 'order__created'
 
 
 admin.site.register(Order, OrderAdmin)
