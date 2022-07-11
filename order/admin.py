@@ -33,12 +33,12 @@ class OrderAdmin(admin.ModelAdmin):
         'comment',
     ]
     list_filter = [
-        'user',
-        'created',
         'in_cart',
         'is_payed',
         'is_closed',
-        'cancelled'
+        'cancelled',
+        'created',
+        'user',
     ]
     search_fields = [
         'id',

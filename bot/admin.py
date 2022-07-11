@@ -3,6 +3,8 @@ from django.contrib import admin
 from bot.models import Chat, CardNumber, ShopSettings, GroupBotMessage
 from django.utils.translation import gettext as _, gettext_lazy as l_
 
+from user.models import User
+
 
 class GroupBotMessageAdmin(admin.ModelAdmin):
     EMPTY_LABEL = '-'
@@ -42,6 +44,11 @@ class GroupBotMessageAdmin(admin.ModelAdmin):
         for item in queryset:
             item.send()
     send.short_description = _(u'Отправить')
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "users":
+            kwargs["queryset"] = User.objects.filter(is_active=True)
+        return super(GroupBotMessageAdmin, self).formfield_for_manytomany(db_field, request, **kwargs)
 
     actions = [
         'send',

@@ -21,6 +21,7 @@ class User(AbstractBaseUser):
     first_name = models.CharField(l_('имя'), default='', max_length=255, blank=True)
     last_name = models.CharField(l_('фамилия'), default='', max_length=255, blank=True, null=True)
     tg_id = models.CharField(max_length=255, verbose_name=l_(u'ID пользователя в TG'), blank=True, null=True)
+    is_active = models.BooleanField(verbose_name=l_('Активный'), default=True)
 
     class Meta:
         verbose_name = l_(u'Пользователь')
