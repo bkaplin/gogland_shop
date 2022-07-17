@@ -23,6 +23,10 @@ class User(AbstractBaseUser):
     tg_id = models.CharField(max_length=255, verbose_name=l_(u'ID пользователя в TG'), blank=True, null=True)
     is_active = models.BooleanField(verbose_name=l_('Активный'), default=True)
 
+    is_admin = models.BooleanField(verbose_name=l_('Админ'), default=False)
+    is_vip = models.BooleanField(verbose_name=l_('VIP'), default=False)
+
+
     class Meta:
         verbose_name = l_(u'Пользователь')
         verbose_name_plural = l_(u'Пользователи')

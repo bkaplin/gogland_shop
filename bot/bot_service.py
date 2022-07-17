@@ -28,6 +28,52 @@ class BotService:
     def dotval(obj, attr, default=None):
         return getattr(obj, attr) if hasattr(obj, attr) else default
 
+    def _init_admins_chat(self, update, _):
+        """Вызывается по команде `/_init_admins_chat`."""
+        user = update.message.from_user
+        user_id = self.dotval(user, 'id')
+        if settings.CORRECT_USERS and str(user_id) not in settings.CORRECT_USERS:
+            raise Exception
+
+        local_user = User.objects.filter(tg_id=user_id).first()
+        if not local_user or not local_user.is_admin:
+            raise Exception
+
+        chat_id = update.message.chat_id
+
+        admins_chat, chat_created = Chat.objects.get_or_create(
+            tg_id=chat_id,
+        )
+        admins_chat.is_admins_chat = True
+        admins_chat.save(update_fields=['is_admins_chat'])
+
+        logger.info(f"Чат админов зарегистрирован: {chat_id}")
+        self.bot.send_message(chat_id=admins_chat.tg_id, text="Чат админов зарегистрирован. "
+                                                              "Теперь тут будут присылаться оповещания о заказах")
+        return
+
+    def _delete_admins_chat(self, update, _):
+        """Вызывается по команде `/_init_admins_chat`."""
+        user = update.message.from_user
+        user_id = self.dotval(user, 'id')
+        if settings.CORRECT_USERS and str(user_id) not in settings.CORRECT_USERS:
+            raise Exception
+
+        local_user = User.objects.filter(tg_id=user_id).first()
+        if not local_user or not local_user.is_admin:
+            raise Exception
+
+        chat_id = update.message.chat_id
+
+        admins_chat = Chat.objects.filter(tg_id=chat_id, is_admins_chat=True).first()
+        if admins_chat:
+            admins_chat.is_admins_chat = False
+            admins_chat.save(update_fields=['is_admins_chat'])
+            logger.info(f"Чат админов удалён: {chat_id}")
+            self.bot.send_message(chat_id=admins_chat.tg_id, text="Чат админов удалён. "
+                                                                  "Теперь тут НЕ будут присылаться оповещания о заказах")
+        return
+
     def start(self, update, _):
         """Вызывается по команде `/start`."""
         # Получаем пользователя, который запустил команду `/start`
@@ -91,8 +137,9 @@ class BotService:
             return
         childs_categories = category.child_categories.order_by('position')
         category_products = category.products.filter(rest__gt=0, is_active=True)
+        VIP_USERS_TG_IDS = set(list(User.objects.filter(is_vip=True).values_list('tg_id', flat=True)))
 
-        if user_tg_id and str(user_tg_id) in settings.VIP_USERS_TG_IDS:
+        if user_tg_id and str(user_tg_id) in VIP_USERS_TG_IDS:
             category_products = category.products.filter(rest__gt=0)
 
         bottom_buttons = []
@@ -115,8 +162,23 @@ class BotService:
         query = update.callback_query
         variant = query.data
 
+        user = query.from_user
+        user_id = self.dotval(user, 'id')
+        local_user = User.objects.filter(tg_id=user_id).first()
+        if not local_user:
+            local_user, created = User.objects.get_or_create(
+                tg_id=user_id,
+                last_name=self.dotval(user, 'last_name'),
+                first_name=self.dotval(user, 'first_name'),
+                username=self.dotval(user, 'username')
+            )
+
         # если идет работа над заказом со стороны админа (оплачено/отменено)
         if variant.startswith('__'):
+            if not local_user.is_admin:
+                query.answer()
+                return
+
             order_id = variant.split('-')[-1]
 
             # берем текст сообщения минус последний символ, в котором значок ⚠
@@ -146,17 +208,6 @@ class BotService:
         work_time = ShopSettings.objects.first().work_time
         work_time_text = f'*** Время работы магазина {work_time} ***'
 
-        user = query.from_user
-        user_id = self.dotval(user, 'id')
-        local_user = User.objects.filter(tg_id=user_id).first()
-        if not local_user:
-            local_user, created = User.objects.get_or_create(
-                tg_id=user_id,
-                last_name=self.dotval(user, 'last_name'),
-                first_name=self.dotval(user, 'first_name'),
-                username=self.dotval(user, 'username')
-            )
-
         buy = False
         order = local_user.orders.filter(in_cart=True).first()
         additional_message = order.info if order else ''
@@ -184,18 +235,21 @@ class BotService:
 
             order_buttons = self.get_order_buttons(order.id)
             order_reply_markup = InlineKeyboardMarkup(order_buttons)
-            for tg_id in settings.ADMIN_TG_IDS:
+
+            admins_chats = set(list(Chat.objects.filter(is_admins_chat=True).values_list('tg_id', flat=True)))
+            for tg_id in admins_chats:
                 self.bot.send_message(
                     text=f"Сделан заказ №{order.pk} на {order.total_int} ₽ от {order.user}\n\n{order.info}{settings.WARNING_ICON}",
                     chat_id=tg_id,
                     reply_markup=order_reply_markup
                 )
-
             return
+
         elif variant == 'confirm' and not order:
             # это происходит в случае, если чувак создал корзину и забыл,
             # а заказ уже отменен через админку, но он жмет кнопку оформить
             variant = None
+
         elif variant.startswith('buy'):
             variant = variant.replace('buy', '')
             buy = True
@@ -215,6 +269,7 @@ class BotService:
                 oi.in_process = True
                 oi.save()
                 return
+
         category = None
         user_has_order_in_cart = local_user.orders.filter(in_cart=True, items__isnull=False).exclude(items__count__lt=1).exists()
         if variant:
@@ -284,6 +339,8 @@ class BotService:
         dispatcher = updater.dispatcher
 
         updater.dispatcher.add_handler(CommandHandler('start', self.start))
+        updater.dispatcher.add_handler(CommandHandler('_init_admins_chat', self._init_admins_chat))
+        updater.dispatcher.add_handler(CommandHandler('_delete_admins_chat', self._delete_admins_chat))
         updater.dispatcher.add_handler(CallbackQueryHandler(self.button))
         updater.dispatcher.add_handler(CommandHandler('help', self.help_command))
         dispatcher.add_handler(MessageHandler(Filters.text, self.text))

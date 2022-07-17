@@ -14,12 +14,14 @@ class Chat(models.Model):
     user = models.ForeignKey(User, verbose_name=l_(u'Пользователь'), related_name='chats', null=True, blank=True, on_delete=SET_NULL)
     tg_id = models.CharField(max_length=255, verbose_name=l_(u'ID чата в TG'))
 
+    is_admins_chat = models.BooleanField(verbose_name=l_('Чат админов'), default=False)
+
     class Meta:
         verbose_name = l_(u'Чат')
         verbose_name_plural = l_(u'Чаты')
 
     def __str__(self):
-        return self.user.full_name or str(self.pk)
+        return self.user.full_name if self.user else None or str(self.pk)
 
 
 class Message(models.Model):

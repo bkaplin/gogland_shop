@@ -133,16 +133,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 TG_TOKEN = '5218097552:AAHZHgM-PtJUfGbvPuVWMh7wq1q7ffTQiOA'
 
-ADMIN_TG_IDS = [
-    '273553669',  # БК
-    '363876661',  # АК
-]
+# настройка для тестового бота. если не пусто, то бот игнорирует всех пользователей, кромет тех айдишников, что в списке
 CORRECT_USERS = []
-VIP_USERS_TG_IDS = [
-    '273553669',  # БК
-    '363876661',  # АК
-    '390173153',  # МК
-]
 
 WARNING_ICON = '⚠'
 PAYED_ICON = '✅'

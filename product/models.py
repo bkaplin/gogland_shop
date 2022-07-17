@@ -4,6 +4,8 @@ from django.db import models
 from django.utils.translation import gettext as _, gettext_lazy as l_
 from django.db.models import SET_NULL
 
+from user.models import User
+
 
 class Category(models.Model):
     name = models.CharField(max_length=255, verbose_name=l_(u'Название категории'), null=True, blank=True)
@@ -21,13 +23,15 @@ class Category(models.Model):
         return self.name or str(self.pk)
 
     def has_products(self, user_tg_id=None):
+        VIP_USERS_TG_IDS = set(list(User.objects.filter(is_vip=True).values_list('tg_id', flat=True)))
+
         child_categories = self.child_categories.all()
 
         if self.products.exists() or not child_categories.exists():
-            res_products = self.products.filter(rest__gt=0, is_active=True).exists()
-            if user_tg_id and str(user_tg_id) in settings.VIP_USERS_TG_IDS:
-                res_products = self.products.filter(rest__gt=0).exists()
-            return self.products.filter(rest__gt=0, is_active=True).exists()
+            res_has_products = self.products.filter(rest__gt=0, is_active=True).exists()
+            if user_tg_id and str(user_tg_id) in VIP_USERS_TG_IDS:
+                res_has_products = self.products.filter(rest__gt=0).exists()
+            return res_has_products
 
         for category in child_categories:
             if category.has_products:
