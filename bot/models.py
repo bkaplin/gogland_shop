@@ -6,6 +6,7 @@ from django.db.models import SET_NULL
 from django.utils import timezone
 from django.utils.translation import gettext as _, gettext_lazy as l_
 
+from order.models import Order
 from user.models import User
 import telegram
 
@@ -26,15 +27,18 @@ class Chat(models.Model):
 
 class Message(models.Model):
     chat = models.ForeignKey(Chat, verbose_name=l_(u'Чат'), related_name='messages', null=True, blank=True, on_delete=SET_NULL)
+    order = models.ForeignKey(Order, verbose_name=l_(u'Заказ'), related_name='messages', null=True, blank=True, on_delete=SET_NULL)
     text = models.CharField(max_length=255, verbose_name=l_(u'Текс сообщения'), blank=True, null=True)
     created = models.DateTimeField(verbose_name=l_(u'Дата создания'), auto_now_add=True)
+    message_id = models.CharField(max_length=10, verbose_name=l_('ID сообщения в TG'), blank=True, null=True)
+    is_for_admins = models.BooleanField(verbose_name=l_('Для админов'), default=False)
 
     class Meta:
         verbose_name = l_(u'Сообщение')
         verbose_name_plural = l_(u'Сообщения')
 
     def __str__(self):
-        return f'{self.chat.user}: {self.text}' if self.chat and self.chat.user else str(self.pk)
+        return f'{self.chat.user}: {self.text}' if self.chat and self.chat.user else f'{self.pk}: {self.text}'
 
 
 class GroupBotMessage(models.Model):

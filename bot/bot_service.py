@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
 from django.conf import settings
 
-from bot.models import Chat, CardNumber, ShopSettings
+from bot.models import Chat, CardNumber, ShopSettings, Message
 from order.models import Order, OrderItem
 from product.models import Category, Product
 from user.models import User
@@ -22,7 +22,7 @@ class BotService:
     def __init__(self):
         self.bot = telegram.Bot(token=settings.TG_TOKEN)
         self.cart_number = CardNumber.objects.filter(is_active=True).first()
-        self.cart_info_message = f"Оплатить по номеру карты \n\n `{self.cart_number.number}`\n (нажать, чтобы скопировать)" if self.cart_number else ""
+        self.cart_info_message = f"Оплатить по номеру карты \n\n `{self.cart_number.number}`\n (нажать, чтобы скопировать)." if self.cart_number else ""
 
     @staticmethod
     def dotval(obj, attr, default=None):
@@ -122,6 +122,11 @@ class BotService:
         bottom_buttons.append(InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}')))
         return [bottom_buttons]
 
+    def get_cancel_order_button(self, order_id):
+        bottom_buttons = []
+        bottom_buttons.append(InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}')))
+        return [bottom_buttons]
+
     def get_root_menu(self, user_has_order_in_cart, user_tg_id=None):
         l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in Category.objects.filter(parent__isnull=True).order_by('position') if c.has_products(user_tg_id)]
 
@@ -173,12 +178,15 @@ class BotService:
                 username=self.dotval(user, 'username')
             )
 
+        local_chat = Chat.objects.filter(tg_id=user_id).first()
+        if not local_chat:
+            Chat.objects.create(
+                user=local_user,
+                tg_id=user_id
+            )
+
         # если идет работа над заказом со стороны админа (оплачено/отменено)
         if variant.startswith('__'):
-            if not local_user.is_admin:
-                query.answer()
-                return
-
             order_id = variant.split('-')[-1]
 
             # берем текст сообщения минус последний символ, в котором значок ⚠
@@ -186,7 +194,7 @@ class BotService:
             if order_id:
                 _order = Order.objects.filter(id=order_id).first()
                 help_text_for_admin = 'Детали в админке'
-                if _order:
+                if _order and (local_user.is_admin or local_user == _order.user):
                     if variant.startswith('__payed'):
                         if not _order.cancelled:
                             if not _order.is_payed:
@@ -194,6 +202,7 @@ class BotService:
                             answer_text += settings.PAYED_ICON
                         else:
                             answer_text += f'{settings.CANCELLED_ICON} Уже было отменено\n{help_text_for_admin}'
+
                     elif variant.startswith('__cancel'):
                         if not _order.is_payed:
                             if not _order.cancelled:
@@ -201,6 +210,31 @@ class BotService:
                             answer_text += settings.CANCELLED_ICON
                         else:
                             answer_text += f'{settings.PAYED_ICON} Уже было оплачено\n{help_text_for_admin}'
+
+                        # если заказ отменил покупатель, то удаляем сообщения в админских чатах об этом заказе
+                        if local_user == _order.user and not local_user.is_admin:
+                            _order.comment = f'{_order.comment or ""}\nОтменен покупателем'
+                            _order.save(update_fields=['comment'])
+                            _order_messages = _order.messages.filter(is_for_admins=True)
+                            for _order_message in _order_messages:
+                                if _order_message.chat:
+                                    self.bot.delete_message(
+                                        chat_id=_order_message.chat.tg_id,
+                                        message_id=_order_message.message_id
+                                    )
+
+                    # убираем кнопку отмены у пользователя после оплаты или отмены от админа
+                    if local_user.is_admin:
+                        user_order_messages = _order.messages.filter(is_for_admins=False)
+                        for user_mes in user_order_messages:
+                            if user_mes.chat:
+                                self.bot.edit_message_text(
+                                    chat_id=user_mes.chat.tg_id,
+                                    message_id=user_mes.message_id,
+                                    text=user_mes.text,
+                                    parse_mode=telegram.ParseMode.MARKDOWN
+                                )
+
             query.answer()
             query.edit_message_text(text=answer_text)
             return
@@ -227,22 +261,44 @@ class BotService:
             order.in_cart = False
             order.update_sum()
             order.recalculate_rests()
-            query.edit_message_text(
-                text=f"Заказ оформлен.\n{order.info}{self.cart_info_message}",
-                parse_mode=telegram.ParseMode.MARKDOWN)
 
             logger.info(f"Пользователь {user_id}:{user.first_name} оформил заказ №{order.pk} на {order.total_int} ₽")
 
-            order_buttons = self.get_order_buttons(order.id)
-            order_reply_markup = InlineKeyboardMarkup(order_buttons)
+            # отправка сообщений в чаты админов о новом заказе
+            order_buttons_for_admin = self.get_order_buttons(order.id)
+            order_reply_markup_for_admin = InlineKeyboardMarkup(order_buttons_for_admin)
 
-            admins_chats = set(list(Chat.objects.filter(is_admins_chat=True).values_list('tg_id', flat=True)))
-            for tg_id in admins_chats:
-                self.bot.send_message(
-                    text=f"Сделан заказ №{order.pk} на {order.total_int} ₽ от {order.user}\n\n{order.info}{settings.WARNING_ICON}",
-                    chat_id=tg_id,
-                    reply_markup=order_reply_markup
+            admins_chats = Chat.objects.filter(is_admins_chat=True)
+            message_to_admins = f"Сделан заказ №{order.pk} на {order.total_int} ₽ от {order.user}\n\n{order.info}{settings.WARNING_ICON}"
+            for admin_chat in admins_chats:
+                tg_message = self.bot.send_message(
+                    text=message_to_admins,
+                    chat_id=admin_chat.tg_id,
+                    reply_markup=order_reply_markup_for_admin
                 )
+                Message.objects.create(
+                    chat=admin_chat,
+                    text=message_to_admins,
+                    message_id=tg_message.message_id,
+                    order_id=order.pk,
+                    is_for_admins=True,
+                )
+
+            # отправляем сообщение покупателю и создаем сообщение
+            order_buttons_for_user = self.get_cancel_order_button(order.id)
+            order_reply_markup_for_user = InlineKeyboardMarkup(order_buttons_for_user)
+            message_to_user = f"Заказ оформлен.\n{order.info}{self.cart_info_message}"
+            query.edit_message_text(
+                text=message_to_user,
+                parse_mode=telegram.ParseMode.MARKDOWN,
+                reply_markup=order_reply_markup_for_user
+            )
+            Message.objects.create(
+                chat=local_chat,
+                text=message_to_user,
+                message_id=query.message.message_id,
+                order_id=order.pk,
+            )
             return
 
         elif variant == 'confirm' and not order:

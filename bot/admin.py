@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from bot.models import Chat, CardNumber, ShopSettings, GroupBotMessage
+from bot.models import Chat, CardNumber, ShopSettings, GroupBotMessage, Message
 from django.utils.translation import gettext as _, gettext_lazy as l_
 
 from user.models import User
@@ -55,7 +55,41 @@ class GroupBotMessageAdmin(admin.ModelAdmin):
     ]
 
 
+class MessageAdmin(admin.ModelAdmin):
+    list_display = [
+        'id',
+        'chat',
+        'order',
+        'text',
+        'created',
+        'message_id',
+        'is_for_admins',
+    ]
+
+    readonly_fields = [
+        'chat',
+        'order',
+        'text',
+        'created',
+        'message_id',
+        'is_for_admins',
+    ]
+
+    search_fields = [
+        'order_id',
+        'chat__user__last_name',
+        'chat__user__first_name',
+    ]
+
+    list_filter = [
+        'created',
+        'is_for_admins',
+        'chat',
+    ]
+
+
 admin.site.register(Chat)
+admin.site.register(Message, MessageAdmin)
 admin.site.register(CardNumber)
 admin.site.register(ShopSettings)
 admin.site.register(GroupBotMessage, GroupBotMessageAdmin)
