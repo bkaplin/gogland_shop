@@ -16,6 +16,7 @@ class Order(models.Model):
     is_payed = models.BooleanField(verbose_name=l_(u'Оплачен'), default=False)
     is_closed = models.BooleanField(verbose_name=l_(u'Закрыт'), default=False)
     cancelled = models.BooleanField(verbose_name=l_(u'Отменён'), default=False)
+    shipped = models.BooleanField(verbose_name=l_(u'Вручено'), default=False)
     profit = models.FloatField(verbose_name=l_(u'Прибыль'), default=0)
 
     comment = models.CharField(verbose_name=l_(u'Комментарий'), max_length=500, blank=True, null=True)
@@ -32,6 +33,10 @@ class Order(models.Model):
         self.is_closed = True
         self.cancelled = False
         self.save(update_fields=['is_payed', 'is_closed', 'cancelled'])
+
+    def set_shipped(self):
+        self.shipped = True
+        self.save(update_fields=['shipped'])
 
     def update_sum(self):
         total, total_profit = 0, 0

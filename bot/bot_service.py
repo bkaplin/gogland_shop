@@ -116,10 +116,17 @@ class BotService:
             text=f"{work_time_text}\n{additional_message}Выберите товар", reply_markup=reply_markup
         )
 
-    def get_order_buttons(self, order_id):
+    def get_order_buttons(self, order_id, shipped_btn=True, payed_btn=True, cancel_btn=True):
         bottom_buttons = []
-        bottom_buttons.append(InlineKeyboardButton(f"Оплачено {settings.PAYED_ICON}", callback_data=str(f'__payed-{order_id}')))
-        bottom_buttons.append(InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}')))
+        if shipped_btn:
+            bottom_buttons.append(InlineKeyboardButton(f"Вручено {settings.SHIPPED_ICON}", callback_data=str(f'__shipped-{order_id}')))
+        if payed_btn:
+            bottom_buttons.append(
+                InlineKeyboardButton(f"Оплачено {settings.PAYED_ICON}", callback_data=str(f'__payed-{order_id}')))
+        if cancel_btn:
+            bottom_buttons.append(
+                InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}')))
+
         return [bottom_buttons]
 
     def get_cancel_order_button(self, order_id):
@@ -191,17 +198,49 @@ class BotService:
 
             # берем текст сообщения минус последний символ, в котором значок ⚠
             answer_text = query.message.text[:-1]
+            _order_reply_markup_for_admin = None
             if order_id:
                 _order = Order.objects.filter(id=order_id).first()
                 help_text_for_admin = 'Детали в админке'
+                icon_for_user = ''
                 if _order and (local_user.is_admin or local_user == _order.user):
-                    if variant.startswith('__payed'):
+                    if variant.startswith('__shipped'):
+                        _order.set_shipped()
+                        if not _order.is_payed:
+                            answer_text += settings.SHIPPED_ICON
+                            icon_for_user = settings.SHIPPED_ICON
+                        else:
+                            answer_text += settings.PAYED_ICON
+                            icon_for_user = settings.PAYED_ICON
+
+                        _order_buttons_for_admin = self.get_order_buttons(
+                            order_id,
+                            shipped_btn=False,
+                            payed_btn=(not _order.is_closed),
+                            cancel_btn=(not _order.is_closed),
+                        )
+                        _order_reply_markup_for_admin = InlineKeyboardMarkup(_order_buttons_for_admin)
+
+                        logger.info(f"Заказ {order_id} вручен")
+
+                    elif variant.startswith('__payed'):
                         if not _order.cancelled:
                             if not _order.is_payed:
                                 _order.set_payed()
                             answer_text += settings.PAYED_ICON
                         else:
                             answer_text += f'{settings.CANCELLED_ICON} Уже было отменено\n{help_text_for_admin}'
+                        icon_for_user = settings.PAYED_ICON
+
+                        _order_buttons_for_admin = self.get_order_buttons(
+                            order_id,
+                            shipped_btn=(not _order.shipped),
+                            payed_btn=False,
+                            cancel_btn=False,
+                        )
+                        _order_reply_markup_for_admin = InlineKeyboardMarkup(_order_buttons_for_admin)
+
+                        logger.info(f"Заказ {order_id} оплачен")
 
                     elif variant.startswith('__cancel'):
                         if not _order.is_payed:
@@ -210,6 +249,11 @@ class BotService:
                             answer_text += settings.CANCELLED_ICON
                         else:
                             answer_text += f'{settings.PAYED_ICON} Уже было оплачено\n{help_text_for_admin}'
+                        icon_for_user = settings.CANCELLED_ICON
+
+                        _order_reply_markup_for_admin = None
+
+                        logger.info(f"Заказ {order_id} отменен")
 
                         # если заказ отменил покупатель, то удаляем сообщения в админских чатах об этом заказе
                         if local_user == _order.user and not local_user.is_admin:
@@ -217,10 +261,13 @@ class BotService:
                             _order.save(update_fields=['comment'])
                             _order_messages = _order.messages.filter(is_for_admins=True)
                             for _order_message in _order_messages:
+                                new_message_text = f'{_order_message.text[:-1]}\n{settings.CANCELLED_ICON} (Отменено покупателем)'
                                 if _order_message.chat:
-                                    self.bot.delete_message(
+                                    self.bot.edit_message_text(
                                         chat_id=_order_message.chat.tg_id,
-                                        message_id=_order_message.message_id
+                                        message_id=_order_message.message_id,
+                                        text=new_message_text,
+                                        parse_mode=telegram.ParseMode.MARKDOWN
                                     )
 
                     # убираем кнопку отмены у пользователя после оплаты или отмены от админа
@@ -228,15 +275,23 @@ class BotService:
                         user_order_messages = _order.messages.filter(is_for_admins=False)
                         for user_mes in user_order_messages:
                             if user_mes.chat:
-                                self.bot.edit_message_text(
-                                    chat_id=user_mes.chat.tg_id,
-                                    message_id=user_mes.message_id,
-                                    text=user_mes.text,
-                                    parse_mode=telegram.ParseMode.MARKDOWN
-                                )
+                                try:
+                                    self.bot.edit_message_text(
+                                        chat_id=user_mes.chat.tg_id,
+                                        message_id=user_mes.message_id,
+                                        text=f'{user_mes.text}\n{icon_for_user}',
+                                        parse_mode=telegram.ParseMode.MARKDOWN,
+                                        reply_markup=None
+                                    )
+                                except:
+                                    pass
+
+            # если пользователь не админ, то кнопок в ответе быть не может
+            if not local_user.is_admin:
+                _order_reply_markup_for_admin = None
 
             query.answer()
-            query.edit_message_text(text=answer_text)
+            query.edit_message_text(text=answer_text, reply_markup=_order_reply_markup_for_admin)
             return
 
         work_time = ShopSettings.objects.first().work_time

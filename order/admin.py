@@ -25,6 +25,7 @@ class OrderAdmin(admin.ModelAdmin):
         'user',
         'created',
         'in_cart',
+        'shipped',
         'is_payed',
         'is_closed',
         'cancelled',
@@ -34,6 +35,7 @@ class OrderAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         'in_cart',
+        'shipped',
         'is_payed',
         'is_closed',
         'cancelled',
@@ -67,6 +69,10 @@ class OrderAdmin(admin.ModelAdmin):
 
     inlines = (OrderItemInline, )
 
+    def mark_shipped(self, request, queryset):
+        queryset.update(shipped=True)
+    mark_shipped.short_description = _(u'Вручено')
+
     def mark_payed(self, request, queryset):
         queryset.update(is_payed=True, is_closed=True)
     mark_payed.short_description = _(u'Оплачено')
@@ -80,9 +86,13 @@ class OrderAdmin(admin.ModelAdmin):
             order.cancel_order_n_recalculate_rests()
     mark_cancelled.short_description = _(u'Отменить')
 
+    def mark_unshipped(self, request, queryset):
+        queryset.update(shipped=False)
+    mark_unshipped.short_description = _(u'НЕ вручено')
+
     def mark_unpayed(self, request, queryset):
         queryset.update(is_payed=False, is_closed=False)
-    mark_unpayed.short_description = _(u'НЕ Оплачено')
+    mark_unpayed.short_description = _(u'НЕ оплачено')
 
     def mark_unclosed(self, request, queryset):
         queryset.update(is_closed=False)
@@ -90,13 +100,15 @@ class OrderAdmin(admin.ModelAdmin):
 
     def mark_uncancelled(self, request, queryset):
         queryset.update(cancelled=False, is_closed=False)
-    mark_uncancelled.short_description = _(u'НЕ Отменять')
+    mark_uncancelled.short_description = _(u'НЕ отменено')
 
     actions = [
+        'mark_shipped',
         'mark_payed',
         'mark_closed',
         'mark_cancelled',
         'mark_unpayed',
+        'mark_unshipped',
         'mark_unclosed',
         'mark_uncancelled',
     ]
