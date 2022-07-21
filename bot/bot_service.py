@@ -117,17 +117,18 @@ class BotService:
         )
 
     def get_order_buttons(self, order_id, shipped_btn=True, payed_btn=True, cancel_btn=True):
-        bottom_buttons = []
+        l, bottom_buttons = [], []
         if shipped_btn:
-            bottom_buttons.append(InlineKeyboardButton(f"Вручено {settings.SHIPPED_ICON}", callback_data=str(f'__shipped-{order_id}')))
+            l.append([InlineKeyboardButton(f"Вручено {settings.SHIPPED_ICON}", callback_data=str(f'__shipped-{order_id}'))])
         if payed_btn:
             bottom_buttons.append(
                 InlineKeyboardButton(f"Оплачено {settings.PAYED_ICON}", callback_data=str(f'__payed-{order_id}')))
         if cancel_btn:
             bottom_buttons.append(
                 InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}')))
+        l.append(bottom_buttons)
 
-        return [bottom_buttons]
+        return l
 
     def get_cancel_order_button(self, order_id):
         bottom_buttons = []
