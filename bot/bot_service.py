@@ -415,6 +415,23 @@ class BotService:
         local_user = User.objects.filter(tg_id=user_id).first()
         if not local_user:
             return
+
+        if text_received.startswith('comment') and local_user.is_admin:
+            text_list = [t for t in text_received.replace('  ', ' ').split(' ') if t]
+            if len(text_list) >= 3:
+                _order_id, _comment = text_list[1], ' '.join(text_list[2:])
+                _order = Order.objects.filter(id=_order_id).first()
+                if _order:
+                    _order.comment = _comment
+                    _order.save(update_fields=['comment'])
+
+                    logger.info(f"Добавлен комментарий к заказу {_order_id}")
+                    self.bot.send_message(
+                        chat_id=local_user.tg_id,
+                        text=f'Комментарий к заказу {_order_id} добавлен'
+                    )
+                    return
+
         order = local_user.orders.filter(in_cart=True).first()
         oi = order.items.filter(in_process=True).first()
 
@@ -443,8 +460,6 @@ class BotService:
         additional_message = f'Добавлен товар {oi.product.name} в количестве {int(oi.count)}шт.{max_count_message} на {oi.sum_int} ₽\n\n{order.info}'
 
         self.send_root_menu(update, user_has_order_in_cart=True and order.items.exists(), additional_message=additional_message)
-
-        # update.message.reply_text('an error occured')
 
     def main(self):
         updater = Updater(settings.TG_TOKEN)
