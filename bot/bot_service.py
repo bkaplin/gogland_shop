@@ -247,6 +247,28 @@ class BotService:
 
         return
 
+    def _add_message_to_order_user(self, text_received, local_user):
+        text_list = [t for t in text_received.replace('  ', ' ').split(' ') if t]
+        if len(text_list) >= 3:
+            _order_id, _message = text_list[1], ' '.join(text_list[2:])
+            _order = Order.objects.filter(id=_order_id).first()
+            if _order:
+                order_user = _order.user
+                if order_user and order_user.tg_id:
+                    self.bot.send_message(chat_id=order_user.tg_id,
+                                          text=f"Привет. Уточнения по заказу {_order_id}.\n{_message}")
+
+                logger.info(f"Отправлено сообщение пользователю {order_user} (id:{order_user.tg_id}) заказа {_order_id}")
+                admin_message = f'Сообщение к заказу {_order_id} отправлено {order_user}'
+            else:
+                admin_message = f'Нет заказа {_order_id}'
+        else:
+            admin_message = 'Не хватает информации, чтобы отправить сообщение'
+
+        self.bot.send_message(chat_id=local_user.tg_id, text=admin_message)
+
+        return
+
     def _process_order_item_count(self, update, text_received, local_user, tg_user):
         work_time = ShopSettings.objects.first().work_time
         work_time_text = f'*** Время работы магазина {work_time} ***'
@@ -493,8 +515,11 @@ class BotService:
         if not local_user:
             return
 
-        if text_received.startswith('comment') and local_user.is_admin:
+        if text_received.lower().startswith('comment') and local_user.is_admin:
             return self._add_comment_to_order(text_received, local_user)
+
+        if text_received.lower().startswith('message') and local_user.is_admin:
+            return self._add_message_to_order_user(text_received, local_user)
 
         return self._process_order_item_count(update, text_received, local_user, user)
 
