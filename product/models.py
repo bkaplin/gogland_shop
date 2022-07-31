@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
+
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext as _, gettext_lazy as l_
-from django.db.models import SET_NULL
+from django.db.models import SET_NULL, Q
 
+from coupon.models import Coupon
 from user.models import User
 
 
@@ -18,6 +21,7 @@ class Category(models.Model):
     class Meta:
         verbose_name = l_(u'Категория')
         verbose_name_plural = l_(u'Категории')
+        ordering = ['name']
 
     def __str__(self):
         return self.name or str(self.pk)
@@ -38,6 +42,12 @@ class Category(models.Model):
                 return True
         return False
 
+    def get_self_with_parents(self):
+        res = [self]
+        if self.parent:
+            res += self.parent.get_self_with_parents()
+        return res
+
 
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name=l_(u'Название продукта'), null=True, blank=True)
@@ -50,6 +60,7 @@ class Product(models.Model):
     class Meta:
         verbose_name = l_(u'Продукт')
         verbose_name_plural = l_(u'Продукты')
+        ordering = ['name']
 
     def __str__(self):
         return self.name or str(self.pk)
@@ -57,3 +68,20 @@ class Product(models.Model):
     @property
     def price_int(self):
         return int(self.price)
+
+    def get_active_coupons(self):
+        today = datetime.today()
+        return Coupon.objects.filter(
+            Q(active=True, start_at__lte=today, end_at__gte=today) &
+            Q(
+                Q(products__exact=self) | Q(categories__in=self.category.get_self_with_parents())
+            )
+        )
+
+    def price_with_coupon(self):
+        coupon = self.get_active_coupons().first()
+        if coupon:
+            new_price = self.price * (1 - float(
+                coupon.coupon_percent) / 100) if coupon.coupon_percent else self.price - coupon.coupon_fixed
+            return int(new_price)
+        return self.price_int

@@ -122,7 +122,7 @@ class OrderItemAdmin(admin.ModelAdmin):
         'count',
         'sync',
         'in_process',
-        'sum',
+        'item_sum',
         'order_created'
     ]
     list_filter = [

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
     'order',
     'product',
+    'coupon',
     'user',
     'bot',
     'temperature'

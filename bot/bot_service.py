@@ -227,6 +227,49 @@ class BotService:
         oi.save()
         return
 
+    def _process_order_item_count(self, update, text_received, local_user, tg_user):
+        work_time = ShopSettings.objects.first().work_time
+        work_time_text = f'*** Время работы магазина {work_time} ***'
+
+        order = local_user.orders.filter(in_cart=True).first()
+        oi = order.items.filter(in_process=True).first()
+        oi_category = oi.product.category
+        if not oi:
+            return
+        count = float(text_received)
+        if count == 0:
+            oi.delete()
+            additional_message = f'{order.info}'
+
+            buttons = self.get_buttons(oi_category, True and order.items.exists(), user_tg_id=tg_user.id)
+            reply_markup = InlineKeyboardMarkup(buttons)
+            update.message.reply_text(
+                text=f"{work_time_text}\n{additional_message}{oi_category.name if oi_category else 'Выберете товар'}",
+                reply_markup=reply_markup)
+            return
+        if count < 0:
+            raise Exception
+        valid_count = count if count <= oi.product.rest else oi.product.rest
+        oi.count += valid_count
+        oi.in_process = False
+        oi.save()
+
+        logger.info(f"Пользователь {tg_user.id}:{tg_user.first_name} добавил продукт {oi.product.pk}:{oi.product.name} в количестве {valid_count} шт. на сумму {oi.product.price_with_coupon() * valid_count} ₽")
+
+        max_count = count >= oi.product.rest
+        oi.reduce_rest(valid_count)
+        order.update_sum()
+
+        max_count_message = "(Максимальное количество)" if max_count else ""
+        additional_message = f'Добавлен товар {oi.product.name} в количестве {int(oi.count)}шт.{max_count_message} на {oi.sum_int} ₽\n\n{order.info}'
+
+        buttons = self.get_buttons(oi_category, True and order.items.exists(), user_tg_id=tg_user.id)
+        reply_markup = InlineKeyboardMarkup(buttons)
+
+        update.message.reply_text(
+            text=f"{work_time_text}\n{additional_message}{oi_category.name if oi_category else 'Выберете товар'}",
+            reply_markup=reply_markup)
+
     def _add_comment_to_order(self, text_received, local_user):
         text_list = [t for t in text_received.replace('  ', ' ').split(' ') if t]
         if len(text_list) >= 3:
@@ -268,49 +311,6 @@ class BotService:
         self.bot.send_message(chat_id=local_user.tg_id, text=admin_message)
 
         return
-
-    def _process_order_item_count(self, update, text_received, local_user, tg_user):
-        work_time = ShopSettings.objects.first().work_time
-        work_time_text = f'*** Время работы магазина {work_time} ***'
-
-        order = local_user.orders.filter(in_cart=True).first()
-        oi = order.items.filter(in_process=True).first()
-        oi_category = oi.product.category
-        if not oi:
-            return
-        count = float(text_received)
-        if count == 0:
-            oi.delete()
-            additional_message = f'{order.info}'
-
-            buttons = self.get_buttons(oi_category, True and order.items.exists(), user_tg_id=tg_user.id)
-            reply_markup = InlineKeyboardMarkup(buttons)
-            update.message.reply_text(
-                text=f"{work_time_text}\n{additional_message}{oi_category.name if oi_category else 'Выберете товар'}",
-                reply_markup=reply_markup)
-            return
-        if count < 0:
-            raise Exception
-        valid_count = count if count <= oi.product.rest else oi.product.rest
-        oi.count += valid_count
-        oi.in_process = False
-        oi.save()
-
-        logger.info(f"Пользователь {tg_user.id}:{tg_user.first_name} добавил продукт {oi.product.pk}:{oi.product.name} в количестве {valid_count} шт. на сумму {oi.product.price * valid_count} ₽")
-
-        max_count = count >= oi.product.rest
-        oi.reduce_rest(valid_count)
-        order.update_sum()
-
-        max_count_message = "(Максимальное количество)" if max_count else ""
-        additional_message = f'Добавлен товар {oi.product.name} в количестве {int(oi.count)}шт.{max_count_message} на {oi.sum_int} ₽\n\n{order.info}'
-
-        buttons = self.get_buttons(oi_category, True and order.items.exists(), user_tg_id=tg_user.id)
-        reply_markup = InlineKeyboardMarkup(buttons)
-
-        update.message.reply_text(
-            text=f"{work_time_text}\n{additional_message}{oi_category.name if oi_category else 'Выберете товар'}",
-            reply_markup=reply_markup)
 
     def _init_admins_chat(self, update, _):
         """Вызывается по команде `/_init_admins_chat`."""
@@ -432,7 +432,7 @@ class BotService:
         if childs_categories.exists():
             l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories if c.has_products(user_tg_id)]
         else:
-            l = [[InlineKeyboardButton(f'{p.name} {p.price_int} ₽ (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category_products]
+            l = [[InlineKeyboardButton(f'{p.name} {p.price_with_coupon()} ₽ (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category_products]
 
         if user_has_order_in_cart:
             bottom_buttons.append(InlineKeyboardButton("Оформить", callback_data=str('confirm')))

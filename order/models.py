@@ -42,7 +42,7 @@ class Order(models.Model):
         total, total_profit = 0, 0
         for item in self.items.all():
             total += item.sum
-            total_profit += item.count * (item.product.price - item.product.sb_price)
+            total_profit += item.count * (item.product.price_with_coupon() - item.product.sb_price)
         self.total = total
         self.profit = total_profit
         self.save()
@@ -82,6 +82,7 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, verbose_name=l_(u'Заказ'), related_name='items', on_delete=SET_NULL, null=True)
     product = models.ForeignKey(Product, verbose_name=l_(u'Продукт'), on_delete=SET_NULL, null=True)
     count = models.IntegerField(verbose_name=l_('Количество'), default=0)
+    item_sum = models.FloatField(verbose_name=l_('Сумма в заказе'), blank=True, null=True)
     sync = models.BooleanField(verbose_name=l_(u'Синхронизирован'), default=False)
     in_process = models.BooleanField(verbose_name=l_(u'В процессе изменения кол-ва'), default=False)
 
@@ -94,7 +95,7 @@ class OrderItem(models.Model):
 
     @property
     def sum(self):
-        return self.product.price * self.count
+        return self.product.price_with_coupon() * self.count if self.product else 0
 
     @property
     def sum_int(self):
@@ -112,8 +113,10 @@ class OrderItem(models.Model):
         self.save()
 
     def save(self, *args, **kwargs):
+        self.item_sum = self.sum
         super(OrderItem, self).save(*args, **kwargs)
-        self.order.update_sum()
+        if self.order:
+            self.order.update_sum()
 
     def delete(self, using=None, keep_parents=False):
         o = self.order
