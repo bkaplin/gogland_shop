@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
 from django.conf import settings
 
-from bot.models import Chat, CardNumber, ShopSettings, Message
+from bot.models import Chat, CardNumber, ShopSettings, Message, GroupBotMessage
 from order.models import Order, OrderItem
 from product.models import Category, Product
 from user.models import User
@@ -312,6 +312,29 @@ class BotService:
 
         return
 
+    def _add_global_message_to_order_user(self, text_received, local_user):
+        text_list = [t for t in text_received.replace('  ', ' ').split(' ') if t]
+        if len(text_list) >= 2:
+            _message = ' '.join(text_list[1:])
+            group_message = GroupBotMessage.objects.create(message_text=_message)
+
+            all_active_users = User.objects.filter(is_active=True)
+            group_message.users.add(*list(all_active_users.values_list('id', flat=True)))
+
+            group_message.send()
+
+            admin_message_list = ['Сообщение отправлено:']
+            admin_message_list.append(group_message.log)
+            admin_message = '\n'.join(admin_message_list)
+
+            logger.info(f"Отправлено глобальное сообщение пользователям\n{group_message.log}")
+        else:
+            admin_message = 'Не хватает информации, чтобы отправить сообщение'
+
+        self.bot.send_message(chat_id=local_user.tg_id, text=admin_message)
+
+        return
+
     def _init_admins_chat(self, update, _):
         """Вызывается по команде `/_init_admins_chat`."""
         user = update.message.from_user
@@ -520,6 +543,9 @@ class BotService:
 
         if text_received.lower().startswith('message') and local_user.is_admin:
             return self._add_message_to_order_user(text_received, local_user)
+
+        if text_received.lower().startswith('globalmessage') and local_user.is_admin:
+            return self._add_global_message_to_order_user(text_received, local_user)
 
         return self._process_order_item_count(update, text_received, local_user, user)
 
