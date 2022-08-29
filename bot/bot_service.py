@@ -455,7 +455,10 @@ class BotService:
         if childs_categories.exists():
             l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories if c.has_products(user_tg_id)]
         else:
-            l = [[InlineKeyboardButton(f'{p.name} {p.price_with_coupon()} ₽ (Ост. {p.rest if p.rest <= 10 else ">10"})', callback_data=f'buy{p.pk}')] for p in category_products]
+            l = [[InlineKeyboardButton(
+                f'{p.name} {p.price_with_coupon()} ₽ '
+                f'(Ост. {p.rest if p.rest or (user_tg_id and str(user_tg_id) in VIP_USERS_TG_IDS) <= 10 else ">10"})',
+                callback_data=f'buy{p.pk}')] for p in category_products]
 
         if user_has_order_in_cart:
             bottom_buttons.append(InlineKeyboardButton("Оформить", callback_data=str('confirm')))
