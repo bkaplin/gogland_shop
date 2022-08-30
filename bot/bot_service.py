@@ -458,7 +458,7 @@ class BotService:
         else:
             l = [[InlineKeyboardButton(
                 f'{p.name} {p.price_with_coupon()} ₽ '
-                f'(Ост. {p.rest if p.rest <= 10 or (user_tg_id and str(user_tg_id) + "W" in ADMIN_USERS_TG_IDS) else ">10"})',
+                f'(Ост. {p.rest if p.rest <= 10 or (user_tg_id and str(user_tg_id) in ADMIN_USERS_TG_IDS) else ">10"})',
                 callback_data=f'buy{p.pk}')] for p in category_products]
 
         if user_has_order_in_cart:
