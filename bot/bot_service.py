@@ -447,6 +447,7 @@ class BotService:
         childs_categories = category.child_categories.order_by('position')
         category_products = category.products.filter(rest__gt=0, is_active=True)
         VIP_USERS_TG_IDS = set(list(User.objects.filter(is_vip=True).values_list('tg_id', flat=True)))
+        ADMIN_USERS_TG_IDS = set(list(User.objects.filter(is_admin=True).values_list('tg_id', flat=True)))
 
         if user_tg_id and str(user_tg_id) in VIP_USERS_TG_IDS:
             category_products = category.products.filter(rest__gt=0)
@@ -457,7 +458,7 @@ class BotService:
         else:
             l = [[InlineKeyboardButton(
                 f'{p.name} {p.price_with_coupon()} ₽ '
-                f'(Ост. {p.rest if p.rest or (user_tg_id and str(user_tg_id) in VIP_USERS_TG_IDS) <= 10 else ">10"})',
+                f'(Ост. {p.rest if p.rest <= 10 or (user_tg_id and str(user_tg_id) + "W" in ADMIN_USERS_TG_IDS) else ">10"})',
                 callback_data=f'buy{p.pk}')] for p in category_products]
 
         if user_has_order_in_cart:
