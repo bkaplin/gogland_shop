@@ -140,6 +140,8 @@ CORRECT_USERS = []
 WARNING_ICON = '⚠'
 SHIPPED_ICON = '✔'
 PAYED_ICON = '✅'
+CASH_ICON = '💰'
+CARD_ICON = '💳'
 CANCELLED_ICON = '❌'
 
 file_path = os.path.join(BASE_DIR, 'gogland_shop/local_settings.py')

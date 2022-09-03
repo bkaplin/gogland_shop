@@ -31,9 +31,11 @@ class OrderAdmin(admin.ModelAdmin):
         'cancelled',
         'total',
         'profit_fmt',
+        'pay_type',
         'comment',
     ]
     list_filter = [
+        'pay_type',
         'in_cart',
         'shipped',
         'is_payed',

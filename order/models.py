@@ -4,6 +4,7 @@ from django.db import models
 from django.utils.translation import gettext as _, gettext_lazy as l_
 from django.db.models import SET_NULL
 
+from order.choices import PayType
 from product.models import Product
 from user.models import User
 
@@ -18,6 +19,7 @@ class Order(models.Model):
     cancelled = models.BooleanField(verbose_name=l_(u'Отменён'), default=False)
     shipped = models.BooleanField(verbose_name=l_(u'Вручено'), default=False)
     profit = models.FloatField(verbose_name=l_(u'Прибыль'), default=0)
+    pay_type = models.CharField(verbose_name=_("Тип оплаты"), max_length=50, choices=PayType.choices, null=True)
 
     comment = models.CharField(verbose_name=l_(u'Комментарий'), max_length=500, blank=True, null=True)
 
@@ -33,6 +35,14 @@ class Order(models.Model):
         self.is_closed = True
         self.cancelled = False
         self.save(update_fields=['is_payed', 'is_closed', 'cancelled'])
+
+    def set_pay_type_card(self):
+        self.pay_type = PayType.CARD
+        self.save(update_fields=['pay_type'])
+
+    def set_pay_type_cash(self):
+        self.pay_type = PayType.CASH
+        self.save(update_fields=['pay_type'])
 
     def set_shipped(self):
         self.shipped = True

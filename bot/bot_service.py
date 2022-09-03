@@ -6,6 +6,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 from django.conf import settings
 
 from bot.models import Chat, CardNumber, ShopSettings, Message, GroupBotMessage
+from order.choices import PayType
 from order.models import Order, OrderItem
 from product.models import Category, Product
 from user.models import User
@@ -55,7 +56,7 @@ class BotService:
         order_id = variant.split('-')[-1]
 
         # берем текст сообщения минус последний символ, в котором значок ⚠
-        answer_text = query.message.text[:-1]
+        answer_text = '\n'.join(query.message.text.split('\n')[:-1]) + '\n'
         _order_reply_markup_for_admin = None
         if order_id:
             _order = Order.objects.filter(id=order_id).first()
@@ -69,6 +70,10 @@ class BotService:
                         icon_for_user = settings.SHIPPED_ICON
                     else:
                         answer_text += settings.PAYED_ICON
+                        if _order.pay_type == PayType.CARD:
+                            answer_text += settings.CARD_ICON
+                        elif _order.pay_type == PayType.CASH:
+                            answer_text += settings.CASH_ICON
                         icon_for_user = settings.PAYED_ICON
 
                     _order_buttons_for_admin = self.get_order_buttons(
@@ -83,9 +88,16 @@ class BotService:
 
                 elif variant.startswith('__payed'):
                     if not _order.cancelled:
+                        result_icon = settings.PAYED_ICON
                         if not _order.is_payed:
                             _order.set_payed()
-                        answer_text += settings.PAYED_ICON
+                            if variant.startswith('__payed_card'):
+                                _order.set_pay_type_card()
+                                result_icon += settings.CARD_ICON
+                            elif variant.startswith('__payed_cash'):
+                                _order.set_pay_type_cash()
+                                result_icon += settings.CASH_ICON
+                        answer_text += result_icon
                     else:
                         answer_text += f'{settings.CANCELLED_ICON} Уже было отменено\n{help_text_for_admin}'
                     icon_for_user = settings.PAYED_ICON
@@ -335,8 +347,7 @@ class BotService:
 
         return
 
-    def _init_admins_chat(self, update, _):
-        """Вызывается по команде `/_init_admins_chat`."""
+    def check_admin_user(self, update):
         user = update.message.from_user
         user_id = dotval(user, 'id')
         if settings.CORRECT_USERS and str(user_id) not in settings.CORRECT_USERS:
@@ -345,6 +356,10 @@ class BotService:
         local_user = User.objects.filter(tg_id=user_id).first()
         if not local_user or not local_user.is_admin:
             raise Exception
+
+    def _init_admins_chat(self, update, _):
+        """Вызывается по команде `/_init_admins_chat`."""
+        self.check_admin_user(update)
 
         chat_id = update.message.chat_id
 
@@ -361,14 +376,7 @@ class BotService:
 
     def _delete_admins_chat(self, update, _):
         """Вызывается по команде `/_init_admins_chat`."""
-        user = update.message.from_user
-        user_id = dotval(user, 'id')
-        if settings.CORRECT_USERS and str(user_id) not in settings.CORRECT_USERS:
-            raise Exception
-
-        local_user = User.objects.filter(tg_id=user_id).first()
-        if not local_user or not local_user.is_admin:
-            raise Exception
+        self.check_admin_user(update)
 
         chat_id = update.message.chat_id
 
@@ -379,6 +387,62 @@ class BotService:
             logger.info(f"Чат админов удалён: {chat_id}")
             self.bot.send_message(chat_id=admins_chat.tg_id, text="Чат админов удалён. "
                                                                   "Теперь тут НЕ будут присылаться оповещания о заказах")
+        return
+
+    def _debts(self, update, _):
+        self.check_admin_user(update)
+
+        debt_dict = self.get_debt_dict()
+
+        res_message = '\n'.join([f'{owner}: {total_debt} ₽' for owner, total_debt in debt_dict.items()])
+
+        chat_id = update.message.chat_id
+
+        chat = Chat.objects.filter(tg_id=chat_id).first()
+        if chat:
+            self.bot.send_message(chat_id=chat.tg_id, text=res_message)
+
+    def get_debt_dict(self, user=None, full_info=False):
+        not_payed_orders = Order.objects.filter(is_payed=False, in_cart=False, shipped=True, cancelled=False)
+        if user:
+            not_payed_orders = not_payed_orders.filter(user=user)
+
+        res_dict = {}
+
+        for order in not_payed_orders:
+            owner = str(order.user)
+
+            if full_info and user:
+                if owner not in res_dict:
+                    res_dict[owner] = []
+                res_dict[owner].append(f'Заказ №{order.id}: {order.total_int} ₽')
+            else:
+                if owner not in res_dict:
+                    res_dict[owner] = 0
+                res_dict[owner] += order.total_int
+
+        return res_dict
+
+    def _get_debt_for_order_user(self, text_received, local_user):
+        text_list = [t for t in text_received.replace('  ', ' ').split(' ') if t]
+        if len(text_list) == 2:
+            _order_id = text_list[1]
+            _order = Order.objects.filter(id=_order_id).first()
+            if _order:
+                order_user = _order.user
+                if order_user and order_user.tg_id:
+                    user_debt_dict = self.get_debt_dict(user=order_user, full_info=True)
+                    orders_info = '\n'.join(user_debt_dict[str(order_user)])
+                    admin_message = f'{order_user}:\n{orders_info}'
+                else:
+                    admin_message = f'У заказа {_order_id} нет пользователя'
+            else:
+                admin_message = f'Нет заказа {_order_id}'
+        else:
+            admin_message = 'Не хватает информации, чтобы отправить сообщение'
+
+        self.bot.send_message(chat_id=local_user.tg_id, text=admin_message)
+
         return
 
     def start(self, update, _):
@@ -418,7 +482,9 @@ class BotService:
             l.append([InlineKeyboardButton(f"Вручено {settings.SHIPPED_ICON}", callback_data=str(f'__shipped-{order_id}'))])
         if payed_btn:
             bottom_buttons.append(
-                InlineKeyboardButton(f"Оплачено {settings.PAYED_ICON}", callback_data=str(f'__payed-{order_id}')))
+                InlineKeyboardButton(f"Карта {settings.CARD_ICON}", callback_data=str(f'__payed_card-{order_id}')))
+            bottom_buttons.append(
+                InlineKeyboardButton(f"Налик {settings.CASH_ICON}", callback_data=str(f'__payed_cash-{order_id}')))
         if cancel_btn:
             bottom_buttons.append(
                 InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}')))
@@ -528,7 +594,21 @@ class BotService:
 
     @staticmethod
     def help_command(update, _):
-        update.message.reply_text("Используйте `/start` для тестирования.")
+        user = update.message.from_user
+        user_id = dotval(user, 'id')
+        local_user = User.objects.filter(tg_id=user_id).first()
+        if local_user and local_user.is_admin:
+            message = '/_init_admins_chat - для инициализации этого чата как админского\n' \
+                      '/_delete_admins_chat - для удаления этого чата из админских\n' \
+                      '/_debts - покажет всех должников с суммами\n' \
+                      'debt {order_id} - покажет все долги пользователя заказа order_id\n' \
+                      'message {order_id} text - для отправки сообщения text пользователю заказа order_id\n' \
+                      'comment {order_id} text - для добавления комментария text к заказу order_id\n' \
+                      'globalmessage text - для отправки сообщения text всем активным пользователям бота\n' \
+                      ''
+        else:
+            message = "Используйте `/start` для тестирования."
+        update.message.reply_text(message)
 
     @staticmethod
     def error(update, context):
@@ -551,6 +631,9 @@ class BotService:
         if text_received.lower().startswith('globalmessage') and local_user.is_admin:
             return self._add_global_message_to_order_user(text_received, local_user)
 
+        if text_received.lower().startswith('debt') and local_user.is_admin:
+            return self._get_debt_for_order_user(text_received, local_user)
+
         return self._process_order_item_count(update, text_received, local_user, user)
 
     def main(self):
@@ -560,6 +643,7 @@ class BotService:
         updater.dispatcher.add_handler(CommandHandler('start', self.start))
         updater.dispatcher.add_handler(CommandHandler('_init_admins_chat', self._init_admins_chat))
         updater.dispatcher.add_handler(CommandHandler('_delete_admins_chat', self._delete_admins_chat))
+        updater.dispatcher.add_handler(CommandHandler('_debts', self._debts))
         updater.dispatcher.add_handler(CallbackQueryHandler(self.button))
         updater.dispatcher.add_handler(CommandHandler('help', self.help_command))
         dispatcher.add_handler(MessageHandler(Filters.text, self.text))
