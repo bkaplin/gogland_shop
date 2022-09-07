@@ -5,6 +5,7 @@ from django.db import models
 from django.db.models import SET_NULL
 from django.utils import timezone
 from django.utils.translation import gettext as _, gettext_lazy as l_
+from solo.models import SingletonModel
 
 from order.models import Order
 from user.models import User
@@ -93,9 +94,19 @@ class CardNumber(models.Model):
         return f'{self.number} {self.owner}'
 
 
-class ShopSettings(models.Model):
-    work_time = models.CharField(verbose_name=l_(u'Время работы магазина сегодня'), max_length=255, default=u'11 - 19')
+class ShopSettings(SingletonModel):
+    work_time = models.CharField(verbose_name=l_(u'Время работы магазина сегодня'), max_length=255, default=u'11 - 19',
+                                 editable=False)
+    work_start = models.TimeField(verbose_name=l_(u'Время начала работы магазина сегодня'), blank=True, null=True)
+    work_end = models.TimeField(verbose_name=l_(u'Время окончания работы магазина сегодня'), blank=True, null=True)
 
     class Meta:
         verbose_name = l_(u'Настройки магазина')
         verbose_name_plural = verbose_name
+
+    @property
+    def work_time_today(self):
+        return f'{self.work_start.strftime("%H:%M")} - {self.work_end.strftime("%H:%M")}'
+
+    def __str__(self):
+        return str(self._meta.verbose_name)

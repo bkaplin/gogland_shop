@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta
 
 import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -28,6 +29,7 @@ class BotService:
         self.bot = telegram.Bot(token=settings.TG_TOKEN)
         self.cart_number = CardNumber.objects.filter(is_active=True).first()
         self.cart_info_message = f"Оплатить по номеру карты \n\n `{self.cart_number.number}`\n (нажать, чтобы скопировать)." if self.cart_number else ""
+        self.work_time_text_fmt = '❗️❗️❗Время работы магазина {} ❗️❗️❗'
 
     @staticmethod
     def _get_local_user(tg_user):
@@ -198,6 +200,9 @@ class BotService:
 
     def _send_notification_to_user(self, query, order, local_chat):
         """отправляем сообщение покупателю и создаем сообщение"""
+        shop_settings = ShopSettings.get_solo()
+        shop_start_work, shop_end_work = shop_settings.work_start, shop_settings.work_end
+
         order_buttons_for_user = self.get_cancel_order_button(order.id)
         order_reply_markup_for_user = InlineKeyboardMarkup(order_buttons_for_user)
         message_to_user = f"Заказ оформлен.\n{order.info}{self.cart_info_message}"
@@ -206,6 +211,15 @@ class BotService:
             parse_mode=telegram.ParseMode.MARKDOWN,
             reply_markup=order_reply_markup_for_user
         )
+
+        now_time = datetime.now().time()
+        if now_time < shop_start_work or now_time > shop_end_work:
+            warning_text = f'{self.work_time_text_fmt.format(shop_settings.work_time_today)}\n' \
+                           f'Сейчас заказ не будет выдан. Приходите в рабочее время.'
+            self.bot.send_message(
+                text=warning_text, chat_id=local_chat.tg_id
+            )
+
         Message.objects.create(
             chat=local_chat,
             text=message_to_user,
@@ -240,8 +254,8 @@ class BotService:
         return
 
     def _process_order_item_count(self, update, text_received, local_user, tg_user):
-        work_time = ShopSettings.objects.first().work_time
-        work_time_text = f'*** Время работы магазина {work_time} ***'
+        work_time = ShopSettings.get_solo().work_time_today
+        work_time_text = self.work_time_text_fmt.format(work_time)
 
         order = local_user.orders.filter(in_cart=True).first()
         oi = order.items.filter(in_process=True).first()
@@ -394,7 +408,8 @@ class BotService:
 
         debt_dict = self.get_debt_dict()
 
-        res_message = '\n'.join([f'{owner}: {total_debt} ₽' for owner, total_debt in debt_dict.items()])
+        res_message = '\n'.join(
+            [f'{owner}: {total_debt} ₽' for owner, total_debt in debt_dict.items()]) if debt_dict else 'Нет долгов'
 
         chat_id = update.message.chat_id
 
@@ -403,7 +418,14 @@ class BotService:
             self.bot.send_message(chat_id=chat.tg_id, text=res_message)
 
     def get_debt_dict(self, user=None, full_info=False):
-        not_payed_orders = Order.objects.filter(is_payed=False, in_cart=False, shipped=True, cancelled=False)
+        tomorrow = datetime.today() + timedelta(days=1)
+        not_payed_orders = Order.objects.filter(
+            is_payed=False,
+            in_cart=False,
+            shipped=True,
+            cancelled=False,
+            created__range=[settings.START_SHOW_ORDER_DEBTS, tomorrow.strftime('%Y-%m-%d')],
+        )
         if user:
             not_payed_orders = not_payed_orders.filter(user=user)
 
@@ -432,7 +454,7 @@ class BotService:
                 order_user = _order.user
                 if order_user and order_user.tg_id:
                     user_debt_dict = self.get_debt_dict(user=order_user, full_info=True)
-                    orders_info = '\n'.join(user_debt_dict[str(order_user)])
+                    orders_info = '\n'.join(user_debt_dict[str(order_user)]) if user_debt_dict else 'Нет долгов'
                     admin_message = f'{order_user}:\n{orders_info}'
                 else:
                     admin_message = f'У заказа {_order_id} нет пользователя'
@@ -469,8 +491,9 @@ class BotService:
         keyboard = self.get_root_menu(user_has_order_in_cart)
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        work_time = ShopSettings.objects.first().work_time
-        work_time_text = f'*** Время работы магазина {work_time} ***'
+        work_time = ShopSettings.get_solo().work_time_today
+        work_time_text = self.work_time_text_fmt.format(work_time)
+
         # Отправляем сообщение с текстом и добавленной клавиатурой `reply_markup`
         update.message.reply_text(
             text=f"{work_time_text}\n{additional_message}Выберите товар", reply_markup=reply_markup
@@ -550,8 +573,8 @@ class BotService:
         if variant.startswith('__'):
             return self._process_order_status(variant, query, local_user)
 
-        work_time = ShopSettings.objects.first().work_time
-        work_time_text = f'*** Время работы магазина {work_time} ***'
+        work_time = ShopSettings.get_solo().work_time_today
+        work_time_text = self.work_time_text_fmt.format(work_time)
 
         buy = False
         order = local_user.orders.filter(in_cart=True).first()

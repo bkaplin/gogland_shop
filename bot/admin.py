@@ -1,5 +1,7 @@
 from django.contrib import admin
+from solo.admin import SingletonModelAdmin
 
+from bot.forms import ShopSettingsForm
 from bot.models import Chat, CardNumber, ShopSettings, GroupBotMessage, Message
 from django.utils.translation import gettext as _, gettext_lazy as l_
 
@@ -88,9 +90,22 @@ class MessageAdmin(admin.ModelAdmin):
     ]
 
 
+class ShopSettingsAdmin(SingletonModelAdmin):
+    fieldsets = [
+        (
+            _('Настройки работы магазина'),
+            {'fields': ('work_start',
+                        'work_end',
+                        )
+             }
+        ),
+    ]
+    form = ShopSettingsForm
+
+
 admin.site.register(Chat)
 admin.site.register(Message, MessageAdmin)
 admin.site.register(CardNumber)
-admin.site.register(ShopSettings)
+admin.site.register(ShopSettings, ShopSettingsAdmin)
 admin.site.register(GroupBotMessage, GroupBotMessageAdmin)
 

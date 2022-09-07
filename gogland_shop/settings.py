@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 import os
+from datetime import datetime
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'solo',
 
     'order',
     'product',
@@ -143,6 +145,9 @@ PAYED_ICON = '✅'
 CASH_ICON = '💰'
 CARD_ICON = '💳'
 CANCELLED_ICON = '❌'
+
+START_SHOW_ORDER_DEBTS = '2022-8-15'
+
 
 file_path = os.path.join(BASE_DIR, 'gogland_shop/local_settings.py')
 if os.path.exists(file_path):
