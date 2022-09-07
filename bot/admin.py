@@ -1,7 +1,6 @@
 from django.contrib import admin
 from solo.admin import SingletonModelAdmin
 
-from bot.forms import ShopSettingsForm
 from bot.models import Chat, CardNumber, ShopSettings, GroupBotMessage, Message
 from django.utils.translation import gettext as _, gettext_lazy as l_
 
@@ -100,7 +99,6 @@ class ShopSettingsAdmin(SingletonModelAdmin):
              }
         ),
     ]
-    form = ShopSettingsForm
 
 
 admin.site.register(Chat)
