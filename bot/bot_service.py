@@ -344,7 +344,7 @@ class BotService:
             _message = ' '.join(text_list[1:])
             group_message = GroupBotMessage.objects.create(message_text=_message)
 
-            all_active_users = User.objects.filter(is_active=True)
+            all_active_users = User.objects.filter(is_active=True, is_verified=True)
             group_message.users.add(*list(all_active_users.values_list('id', flat=True)))
 
             group_message.send()
