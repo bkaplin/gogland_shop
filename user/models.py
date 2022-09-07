@@ -13,6 +13,8 @@ PHONE_VALIDATOR = RegexValidator(regex=r'[0-9( )\-+]{6,20}',
 class User(AbstractBaseUser):
     USERNAME_FIELD = 'tg_id'
 
+    created = models.DateTimeField(verbose_name=l_(u'Дата создания'), auto_now_add=True, blank=True, null=True)
+
     username = models.CharField(l_('username'), max_length=255, blank=True, null=True)
     phone = models.CharField(
         l_(u'Контактный телефон'), max_length=30, validators=[PHONE_VALIDATOR], default='',
@@ -25,6 +27,7 @@ class User(AbstractBaseUser):
 
     is_admin = models.BooleanField(verbose_name=l_('Админ'), default=False)
     is_vip = models.BooleanField(verbose_name=l_('VIP'), default=False)
+    is_verified = models.BooleanField(verbose_name=l_('Верифицирован'), default=False)
 
     class Meta:
         verbose_name = l_(u'Пользователь')

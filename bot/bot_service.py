@@ -480,6 +480,31 @@ class BotService:
 
         logger.info(f"Пользователь {user_id}:{user.first_name} зашел")
 
+        # не даем ничего не верифицированному пользователю и сообщаем админам
+        if not local_user.is_verified:
+            update.message.reply_text(
+                text=f"Обратитесь к разработчику за уточнениями",
+            )
+
+            admins_chats = Chat.objects.filter(is_admins_chat=True)
+            message_to_admins = f"Не верифицированный пользователь пытается сделать заказ.\n{local_user}: {user_id}"
+            has_notification_to_admin = Message.objects.filter(chat__in=admins_chats,
+                                                               text=message_to_admins,
+                                                               is_for_admins=True).exists()
+            if not has_notification_to_admin:
+                for admin_chat in admins_chats:
+                    tg_message = self.bot.send_message(
+                        text=message_to_admins,
+                        chat_id=admin_chat.tg_id,
+                    )
+                    Message.objects.create(
+                        chat=admin_chat,
+                        text=message_to_admins,
+                        message_id=tg_message.message_id,
+                        is_for_admins=True,
+                    )
+            return
+
         orders_in_cart = local_user.orders.filter(in_cart=True)
         for order in orders_in_cart:
             order.cancel_order_n_recalculate_rests()
