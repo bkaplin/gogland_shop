@@ -480,6 +480,10 @@ class BotService:
 
         logger.info(f"Пользователь {user_id}:{user.first_name} зашел")
 
+        #TODO: ВРЕМЕННО!!!
+        local_user.is_verified = True
+        local_user.save()
+
         # не даем ничего не верифицированному пользователю и сообщаем админам
         if not local_user.is_verified:
             update.message.reply_text(
