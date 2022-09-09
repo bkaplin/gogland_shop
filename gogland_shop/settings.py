@@ -141,6 +141,7 @@ CORRECT_USERS = []
 
 WARNING_ICON = '⚠'
 SHIPPED_ICON = '✔'
+BACK_ICON = '↩'
 PAYED_ICON = '✅'
 CASH_ICON = '💰'
 CARD_ICON = '💳'

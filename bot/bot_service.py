@@ -28,8 +28,10 @@ class BotService:
     def __init__(self):
         self.bot = telegram.Bot(token=settings.TG_TOKEN)
         self.cart_number = CardNumber.objects.filter(is_active=True).first()
-        self.cart_info_message = f"Оплатить по номеру карты \n\n `{self.cart_number.number}`\n (нажать, чтобы скопировать)." if self.cart_number else ""
-        self.work_time_text_fmt = '❗️❗️❗Время работы магазина {} ❗️❗️❗'
+        self.cart_info_message = f"Оплатить по номеру карты \n\n" \
+                                 f"`{self.cart_number.number}`\n" \
+                                 f"(нажать, чтобы скопировать)." if self.cart_number else ""
+        self.work_time_text_fmt = '❗❗❗❗❗❗❗❗❗❗❗❗❗❗❗\nВремя работы магазина {}\n❗❗❗❗❗❗❗❗❗❗❗❗❗❗❗\n'
 
     @staticmethod
     def _get_local_user(tg_user):
@@ -536,11 +538,12 @@ class BotService:
             bottom_buttons.append(
                 InlineKeyboardButton(f"Карта {settings.CARD_ICON}", callback_data=str(f'__payed_card-{order_id}')))
             bottom_buttons.append(
-                InlineKeyboardButton(f"Налик {settings.CASH_ICON}", callback_data=str(f'__payed_cash-{order_id}')))
-        if cancel_btn:
-            bottom_buttons.append(
-                InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}')))
+                InlineKeyboardButton(f"Нал {settings.CASH_ICON}", callback_data=str(f'__payed_cash-{order_id}')))
         l.append(bottom_buttons)
+        if cancel_btn:
+            l.append([
+                InlineKeyboardButton(f"Отменить {settings.CANCELLED_ICON}", callback_data=str(f'__cancel-{order_id}'))
+            ])
 
         return l
 
@@ -554,8 +557,8 @@ class BotService:
 
         bottom_buttons = []
         if user_has_order_in_cart:
-            bottom_buttons.append(InlineKeyboardButton("Оформить", callback_data=str('confirm')))
-        bottom_buttons.append(InlineKeyboardButton("Отмена", callback_data=str('exit')))
+            bottom_buttons.append(InlineKeyboardButton(f"Оформить {settings.PAYED_ICON}", callback_data=str('confirm')))
+        bottom_buttons.append(InlineKeyboardButton(f"Отмена {settings.CANCELLED_ICON}", callback_data=str('exit')))
         l.append(bottom_buttons)
         return l
 
@@ -580,10 +583,10 @@ class BotService:
                 callback_data=f'buy{p.pk}')] for p in category_products]
 
         if user_has_order_in_cart:
-            bottom_buttons.append(InlineKeyboardButton("Оформить", callback_data=str('confirm')))
+            bottom_buttons.append(InlineKeyboardButton(f"Оформить {settings.PAYED_ICON}", callback_data=str('confirm')))
         bottom_buttons += [
-            InlineKeyboardButton("Отмена", callback_data=str('exit')),
-            InlineKeyboardButton("Назад", callback_data='back_to' + str(category.parent.pk if category.parent else '')),
+            InlineKeyboardButton(f"Отмена {settings.CANCELLED_ICON}", callback_data=str('exit')),
+            InlineKeyboardButton(f"Назад {settings.BACK_ICON}", callback_data='back_to' + str(category.parent.pk if category.parent else '')),
         ]
         l.append(bottom_buttons)
 
