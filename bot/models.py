@@ -99,6 +99,7 @@ class ShopSettings(SingletonModel):
                                  editable=False)
     work_start = models.TimeField(verbose_name=l_(u'Время начала работы магазина сегодня'), blank=True, null=True)
     work_end = models.TimeField(verbose_name=l_(u'Время окончания работы магазина сегодня'), blank=True, null=True)
+    enable_verification = models.BooleanField(verbose_name=l_(u'Включить верификацию пользователей'), default=False)
 
     class Meta:
         verbose_name = l_(u'Настройки магазина')

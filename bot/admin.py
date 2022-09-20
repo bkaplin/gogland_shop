@@ -93,10 +93,16 @@ class ShopSettingsAdmin(SingletonModelAdmin):
     fieldsets = [
         (
             _('Настройки работы магазина'),
-            {'fields': ('work_start',
-                        'work_end',
-                        )
-             }
+            {'fields': (
+                'work_start',
+                'work_end',
+            )}
+        ),
+        (
+            _('Настройки верификации'),
+            {'fields': (
+                'enable_verification',
+            )}
         ),
     ]
 

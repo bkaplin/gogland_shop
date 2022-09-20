@@ -482,9 +482,11 @@ class BotService:
 
         logger.info(f"Пользователь {user_id}:{user.first_name} зашел")
 
-        #TODO: ВРЕМЕННО!!!
-        local_user.is_verified = True
-        local_user.save()
+        # если выключена верификация, то пропускаем любого пользователя и даем делать заказ
+        enable_verification = ShopSettings.get_solo().enable_verification
+        if not enable_verification:
+            local_user.is_verified = True
+            local_user.save()
 
         # не даем ничего не верифицированному пользователю и сообщаем админам
         if not local_user.is_verified:
