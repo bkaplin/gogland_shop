@@ -93,7 +93,7 @@ class OrderAdmin(admin.ModelAdmin):
     mark_unshipped.short_description = _(u'НЕ вручено')
 
     def mark_unpayed(self, request, queryset):
-        queryset.update(is_payed=False, is_closed=False)
+        queryset.update(is_payed=False, is_closed=False, pay_type=None)
     mark_unpayed.short_description = _(u'НЕ оплачено')
 
     def mark_unclosed(self, request, queryset):
