@@ -575,6 +575,11 @@ class BotService:
         if user_tg_id and str(user_tg_id) in VIP_USERS_TG_IDS:
             category_products = category.products.filter(rest__gt=0)
 
+        # если не суперадмин, то скрываем, если скрыт для всех.
+        # суперадмин видит абсолютно все продукты в наличии
+        if str(user_tg_id) not in settings.SUPER_ADMINS_IDS:
+            category_products = category_products.exclude(hidden_for_all=True)
+
         bottom_buttons = []
         if childs_categories.exists():
             l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories if c.has_products(user_tg_id)]

@@ -57,6 +57,12 @@ class Product(models.Model):
     price = models.FloatField(verbose_name=l_(u'Цена'), default=0)
     is_active = models.BooleanField(verbose_name=l_(u'Активен для продажи'), default=True)
 
+    hidden_for_all = models.BooleanField(verbose_name=l_(u'Скрыт для всех (админов в тч)'),
+                                         help_text=l_(u'Например, когда товар пока не в продаже, '
+                                                      u'а планируется только в будущем, поставить галку до тех пор, '
+                                                      u'пока не будет решено начать продавать'),
+                                         default=False)
+
     class Meta:
         verbose_name = l_(u'Продукт')
         verbose_name_plural = l_(u'Продукты')
