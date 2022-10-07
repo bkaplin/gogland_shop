@@ -184,19 +184,22 @@ class BotService:
         order_buttons_for_admin = self.get_order_buttons(order.id)
         order_reply_markup_for_admin = InlineKeyboardMarkup(order_buttons_for_admin)
 
-        admins_chats = Chat.objects.filter(is_admins_chat=True)
         message_to_admins = f"Сделан заказ №{order.pk} на {order.total_int} ₽ от {order.user}\n\n{order.info}{settings.WARNING_ICON}"
+        self._send_message_to_admins_chats(message_to_admins, reply_markup=order_reply_markup_for_admin, order=order)
+
+    def _send_message_to_admins_chats(self, message_to_admins, reply_markup=None, order=None):
+        admins_chats = Chat.objects.filter(is_admins_chat=True)
         for admin_chat in admins_chats:
             tg_message = self.bot.send_message(
                 text=message_to_admins,
                 chat_id=admin_chat.tg_id,
-                reply_markup=order_reply_markup_for_admin
+                reply_markup=reply_markup
             )
             Message.objects.create(
                 chat=admin_chat,
                 text=message_to_admins,
                 message_id=tg_message.message_id,
-                order_id=order.pk,
+                order=order,
                 is_for_admins=True,
             )
 
@@ -363,7 +366,7 @@ class BotService:
 
         return
 
-    def check_admin_user(self, update):
+    def check_admin_user(self, update, check_super_admin=False):
         user = update.message.from_user
         user_id = dotval(user, 'id')
         if settings.CORRECT_USERS and str(user_id) not in settings.CORRECT_USERS:
@@ -371,6 +374,8 @@ class BotService:
 
         local_user = User.objects.filter(tg_id=user_id).first()
         if not local_user or not local_user.is_admin:
+            raise Exception
+        if check_super_admin and str(user_id) not in settings.SUPER_ADMINS_IDS:
             raise Exception
 
     def _init_admins_chat(self, update, _):
@@ -418,6 +423,22 @@ class BotService:
         chat = Chat.objects.filter(tg_id=chat_id).first()
         if chat:
             self.bot.send_message(chat_id=chat.tg_id, text=res_message)
+
+    def _bot_off(self, update, _):
+        message_to_admins = 'Бот временно отключен. Доступ к функционалу имеют только суперадмины.'
+        self._change_bot_work(update, True, message_to_admins)
+
+    def _bot_on(self, update, _):
+        message_to_admins = 'Бот включен. Все имеют доступ к функционалу бота.'
+        self._change_bot_work(update, False, message_to_admins)
+
+    def _change_bot_work(self, update, disable, message_to_admins):
+        self.check_admin_user(update, check_super_admin=True)
+        bot_settings = ShopSettings.get_solo()
+        bot_settings.disable_bot = disable
+        bot_settings.save()
+
+        self._send_message_to_admins_chats(message_to_admins)
 
     def get_debt_dict(self, user=None, full_info=False):
         tomorrow = datetime.today() + timedelta(days=1)
@@ -469,8 +490,20 @@ class BotService:
 
         return
 
+    def check_disable_bot(self, user_id):
+        # если бот выключен, сообщим об этом
+        if ShopSettings.get_solo().disable_bot and str(user_id) not in settings.SUPER_ADMINS_IDS:
+            self.bot.send_message(
+                text=f"Бот временно недоступен",
+                chat_id=user_id,
+            )
+            return True
+        return False
+
     def start(self, update, _):
         """Вызывается по команде `/start`."""
+        bot_settings = ShopSettings.get_solo()
+
         # Получаем пользователя, который запустил команду `/start`
         user = update.message.from_user
         user_id = dotval(user, 'id')
@@ -483,7 +516,7 @@ class BotService:
         logger.info(f"Пользователь {user_id}:{user.first_name} зашел")
 
         # если выключена верификация, то пропускаем любого пользователя и даем делать заказ
-        enable_verification = ShopSettings.get_solo().enable_verification
+        enable_verification = bot_settings.enable_verification
         if not enable_verification:
             local_user.is_verified = True
             local_user.save()
@@ -511,6 +544,10 @@ class BotService:
                         message_id=tg_message.message_id,
                         is_for_admins=True,
                     )
+            return
+
+        # если бот выключен, сообщим об этом и выкинем
+        if self.check_disable_bot(user_id):
             return
 
         orders_in_cart = local_user.orders.filter(in_cart=True)
@@ -585,7 +622,7 @@ class BotService:
             l = [[InlineKeyboardButton(c.name, callback_data=str(c.pk))] for c in childs_categories if c.has_products(user_tg_id)]
         else:
             l = [[InlineKeyboardButton(
-                f'{p.name} {p.price_with_coupon()} ₽ '
+                f'{p._menu_label}{p.name} {p.price_with_coupon()} ₽ '
                 f'(Ост. {p.rest if p.rest <= 10 or (user_tg_id and str(user_tg_id) in ADMIN_USERS_TG_IDS) else ">10"})',
                 callback_data=f'buy{p.pk}')] for p in category_products]
 
@@ -607,6 +644,10 @@ class BotService:
 
         local_user, user_id = self._get_local_user(user)
         local_chat = self._get_local_chat(local_user)
+
+        # если бот выключен, сообщим об этом и выкинем
+        if self.check_disable_bot(user_id):
+            return
 
         # если идет работа над заказом со стороны админа (оплачено/отменено)
         if variant.startswith('__'):
@@ -663,6 +704,8 @@ class BotService:
             message = '/_init_admins_chat - для инициализации этого чата как админского\n' \
                       '/_delete_admins_chat - для удаления этого чата из админских\n' \
                       '/_debts - покажет всех должников с суммами\n' \
+                      '/_bot_off - выключит бот\n' \
+                      '/_bot_on - включит бот\n' \
                       'debt {order_id} - покажет все долги пользователя заказа order_id\n' \
                       'message {order_id} text - для отправки сообщения text пользователю заказа order_id\n' \
                       'comment {order_id} text - для добавления комментария text к заказу order_id\n' \
@@ -682,6 +725,10 @@ class BotService:
         user_id = dotval(user, 'id')
         local_user = User.objects.filter(tg_id=user_id).first()
         if not local_user:
+            return
+
+        # если бот выключен, сообщим об этом и выкинем
+        if self.check_disable_bot(user_id):
             return
 
         if text_received.lower().startswith('comment') and local_user.is_admin:
@@ -706,6 +753,8 @@ class BotService:
         updater.dispatcher.add_handler(CommandHandler('_init_admins_chat', self._init_admins_chat))
         updater.dispatcher.add_handler(CommandHandler('_delete_admins_chat', self._delete_admins_chat))
         updater.dispatcher.add_handler(CommandHandler('_debts', self._debts))
+        updater.dispatcher.add_handler(CommandHandler('_bot_off', self._bot_off))
+        updater.dispatcher.add_handler(CommandHandler('_bot_on', self._bot_on))
         updater.dispatcher.add_handler(CallbackQueryHandler(self.button))
         updater.dispatcher.add_handler(CommandHandler('help', self.help_command))
         dispatcher.add_handler(MessageHandler(Filters.text, self.text))

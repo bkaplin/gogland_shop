@@ -72,6 +72,10 @@ class Product(models.Model):
         return self.name or str(self.pk)
 
     @property
+    def _menu_label(self):
+        return settings.FIRE_ICON if not self.is_active or self.hidden_for_all else ''
+
+    @property
     def price_int(self):
         return int(self.price)
 

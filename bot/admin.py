@@ -88,6 +88,17 @@ class MessageAdmin(admin.ModelAdmin):
         'chat',
     ]
 
+class ChatAdmin(admin.ModelAdmin):
+    list_display = [
+        'id',
+        'user',
+        'tg_id',
+        'is_admins_chat',
+    ]
+    list_filter = [
+        'is_admins_chat',
+    ]
+
 
 class ShopSettingsAdmin(SingletonModelAdmin):
     fieldsets = [
@@ -104,10 +115,16 @@ class ShopSettingsAdmin(SingletonModelAdmin):
                 'enable_verification',
             )}
         ),
+        (
+            _('Настройки доступности бота'),
+            {'fields': (
+                'disable_bot',
+            )}
+        ),
     ]
 
 
-admin.site.register(Chat)
+admin.site.register(Chat, ChatAdmin)
 admin.site.register(Message, MessageAdmin)
 admin.site.register(CardNumber)
 admin.site.register(ShopSettings, ShopSettingsAdmin)

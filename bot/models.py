@@ -1,4 +1,5 @@
 import datetime
+import time
 
 from django.conf import settings
 from django.db import models
@@ -70,6 +71,7 @@ class GroupBotMessage(models.Model):
         self.log += f'{now.strftime("%d.%m.%Y %H:%M:%S")}\n'
 
         for user in self.users.all():
+            time.sleep(1)
             try:
                 bot.send_message(text=self.message_text, chat_id=user.tg_id)
                 status = 'OK'
@@ -100,6 +102,9 @@ class ShopSettings(SingletonModel):
     work_start = models.TimeField(verbose_name=l_(u'Время начала работы магазина сегодня'), blank=True, null=True)
     work_end = models.TimeField(verbose_name=l_(u'Время окончания работы магазина сегодня'), blank=True, null=True)
     enable_verification = models.BooleanField(verbose_name=l_(u'Включить верификацию пользователей'), default=False)
+
+    disable_bot = models.BooleanField(verbose_name=l_(u'Выключить бота'), default=False,
+                                      help_text=l_(u'Полностью выключить бота (не будет возможности делать заказы)'))
 
     class Meta:
         verbose_name = l_(u'Настройки магазина')
