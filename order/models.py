@@ -122,6 +122,13 @@ class OrderItem(models.Model):
         self.sync = True
         self.save()
 
+    def increase_rest(self, count):
+        self.product.rest += count or self.count
+        self.product.save()
+
+        self.sync = False
+        self.save()
+
     def save(self, *args, **kwargs):
         self.item_sum = self.sum
         super(OrderItem, self).save(*args, **kwargs)

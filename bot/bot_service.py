@@ -269,13 +269,14 @@ class BotService:
             return
         count = float(text_received)
         if count == 0:
+            oi.increase_rest(oi.count)
             oi.delete()
             additional_message = f'{order.info}'
 
             buttons = self.get_buttons(oi_category, True and order.items.exists(), user_tg_id=tg_user.id)
             reply_markup = InlineKeyboardMarkup(buttons)
             update.message.reply_text(
-                text=f"{work_time_text}\n{additional_message}{oi_category.name if oi_category else 'Выберете товар'}",
+                text=f"{work_time_text}\n{additional_message}{oi_category.name if oi_category else 'Выберите товар'}",
                 reply_markup=reply_markup)
             return
         if count < 0:
@@ -298,7 +299,7 @@ class BotService:
         reply_markup = InlineKeyboardMarkup(buttons)
 
         update.message.reply_text(
-            text=f"{work_time_text}\n{additional_message}{oi_category.name if oi_category else 'Выберете товар'}",
+            text=f"{work_time_text}\n{additional_message}{oi_category.name if oi_category else 'Выберите товар'}",
             reply_markup=reply_markup)
 
     def _add_comment_to_order(self, text_received, local_user):
@@ -550,7 +551,7 @@ class BotService:
         if self.check_disable_bot(user_id):
             return
 
-        orders_in_cart = local_user.orders.filter(in_cart=True)
+        orders_in_cart = local_user.orders.filter(in_cart=True).distinct()
         for order in orders_in_cart:
             order.cancel_order_n_recalculate_rests()
 
@@ -693,7 +694,7 @@ class BotService:
         query.answer()
 
         # редактируем сообщение, тем самым кнопки в чате заменятся на этот ответ.
-        query.edit_message_text(text=f"{work_time_text}\n{additional_message}{category.name if category else 'Выберете товар'}", reply_markup=reply_markup)
+        query.edit_message_text(text=f"{work_time_text}\n{additional_message}{category.name if category else 'Выберите товар'}", reply_markup=reply_markup)
 
     @staticmethod
     def help_command(update, _):
