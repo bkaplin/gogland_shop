@@ -1,5 +1,5 @@
 from django.contrib import admin
-from product.models import Product, Category
+from product.models import Product, Category, AdditionalProperty
 
 
 class ProductAdmin(admin.ModelAdmin):
@@ -12,16 +12,16 @@ class ProductAdmin(admin.ModelAdmin):
         'price',
         'is_active',
     ]
-    list_filter = [
-        'category',
-        'is_active',
-    ]
-    search_fields = [
+
+
+class AdditionalPropertyAdmin(admin.ModelAdmin):
+    list_display = [
         'id',
         'name',
-        'category',
+        'warning_message',
     ]
 
 
 admin.site.register(Product, ProductAdmin)
+admin.site.register(AdditionalProperty, AdditionalPropertyAdmin)
 admin.site.register(Category)

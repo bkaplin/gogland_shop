@@ -242,6 +242,10 @@ class BotService:
         self._send_notification_to_admins(order)
         self._send_notification_to_user(query, order, local_chat)
 
+        if order.has_products_with_warnings:
+            for warning in order.all_warnings:
+                self.bot.send_message(chat_id=tg_user.id, text=warning)
+
         return
 
     def _create_order_item_in_cart(self, query, product, local_user):

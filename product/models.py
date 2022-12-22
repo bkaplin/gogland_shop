@@ -49,6 +49,18 @@ class Category(models.Model):
         return res
 
 
+class AdditionalProperty(models.Model):
+    name = models.CharField(max_length=255, verbose_name=l_(u'Название свойства'), null=True, blank=True)
+    warning_message = models.TextField(verbose_name=l_(u'Текст предупреждения'), null=True, blank=True)
+
+    class Meta:
+        verbose_name = l_(u'Дополнительное свойство товара')
+        verbose_name_plural = l_(u'Дополнительные свойства товара')
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name=l_(u'Название продукта'), null=True, blank=True)
     category = models.ForeignKey(Category, verbose_name=l_(u'Категория'), related_name='products', on_delete=SET_NULL, null=True)
@@ -62,6 +74,10 @@ class Product(models.Model):
                                                       u'а планируется только в будущем, поставить галку до тех пор, '
                                                       u'пока не будет решено начать продавать'),
                                          default=False)
+    additional_property = models.ForeignKey(AdditionalProperty,
+                                            verbose_name=l_(u'Дополнительное свойство'),
+                                            on_delete=SET_NULL,
+                                            blank=True, null=True)
 
     class Meta:
         verbose_name = l_(u'Продукт')

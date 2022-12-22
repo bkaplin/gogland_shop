@@ -87,6 +87,17 @@ class Order(models.Model):
     def total_int(self):
         return int(self.total)
 
+    @property
+    def has_products_with_warnings(self):
+        return self.items.filter(product__additional_property__isnull=False).exists()
+
+    @property
+    def all_warnings(self):
+        products_ids = list(self.items.values_list('product_id', flat=True))
+        products = Product.objects.filter(id__in=products_ids)
+        warnings = [p.additional_property.warning_message for p in products if p.additional_property]
+        return set(warnings)
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, verbose_name=l_(u'Заказ'), related_name='items', on_delete=SET_NULL, null=True)
