@@ -262,14 +262,18 @@ class BotService:
         oi.save()
         return
 
-    def _process_order_item_count(self, update, text_received, local_user, tg_user):
+    def _process_order_item_count(self, update, text_received, local_user, tg_user, from_chat):
         work_time = ShopSettings.get_solo().work_time_today
         work_time_text = self.work_time_text_fmt.format(work_time)
 
         order = local_user.orders.filter(in_cart=True).first()
-        oi = order.items.filter(in_process=True).first()
-        oi_category = oi.product.category
-        if not oi:
+        oi, oi_category = None, None
+        if order:
+            oi = order.items.filter(in_process=True).first()
+            oi_category = oi.product.category
+
+        is_message_from_admin_chat = from_chat.is_admins_chat if from_chat else False
+        if not oi or is_message_from_admin_chat:
             return
         count = float(text_received)
         if count == 0:
@@ -726,6 +730,8 @@ class BotService:
 
     def text(self, update, context):
         text_received = update.message.text
+        chat_id = update.message.chat_id
+        from_chat = Chat.objects.filter(tg_id=chat_id).first() if chat_id else None
         user = update.message.from_user
         user_id = dotval(user, 'id')
         local_user = User.objects.filter(tg_id=user_id).first()
@@ -748,7 +754,7 @@ class BotService:
         if text_received.lower().startswith('debt') and local_user.is_admin:
             return self._get_debt_for_order_user(text_received, local_user)
 
-        return self._process_order_item_count(update, text_received, local_user, user)
+        return self._process_order_item_count(update, text_received, local_user, user, from_chat)
 
     def main(self):
         updater = Updater(settings.TG_TOKEN)
