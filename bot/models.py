@@ -62,7 +62,7 @@ class GroupBotMessage(models.Model):
 
     def send(self):
         bot = telegram.Bot(token=settings.TG_TOKEN)
-        now = datetime.datetime.now()
+        now = timezone.now()
         self.sent_at = now
         self.sent = True
 

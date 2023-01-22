@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime, timedelta
 
 import telegram
@@ -370,10 +371,38 @@ class BotService:
             logger.info(f"Отправлено глобальное сообщение пользователям\n{group_message.log}")
         else:
             admin_message = 'Не хватает информации, чтобы отправить сообщение'
+        tik = datetime.now()
+        while admin_message:
+            part_of_message, admin_message = self._cut_text_to_max_size(admin_message, settings.MAX_TG_MESSAGE_SIZE)
+            self.bot.send_message(chat_id=local_user.tg_id, text=part_of_message)
+            time.sleep(1)
 
-        self.bot.send_message(chat_id=local_user.tg_id, text=admin_message)
-
+            # Если больше 10 минут в цикле, выходим принудительно, что-то не так
+            tok = datetime.now()
+            spent_time = tok - tik
+            if spent_time.total_seconds() > 600:
+                raise
         return
+
+    @staticmethod
+    def _cut_text_to_max_size(text, max_size, delimiter='\n'):
+        text_list = text.split(delimiter)
+        size = 0
+        max_index = None
+        for i, item in enumerate(text_list):
+            size += len(item)
+            if size >= max_size:
+                break
+            max_index = i
+
+        if max_index:
+            cut_text = delimiter.join(text_list[:max_index])
+            remain = delimiter.join(text_list[max_index:])
+        else:
+            cut_text = text[:max_size]
+            remain = text[max_size:]
+
+        return cut_text, remain
 
     def check_admin_user(self, update, check_super_admin=False):
         user = update.message.from_user
