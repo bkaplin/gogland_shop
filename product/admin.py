@@ -12,6 +12,14 @@ class ProductAdmin(admin.ModelAdmin):
         'price',
         'is_active',
     ]
+    list_filter = [
+        'category',
+        'is_active'
+    ]
+    search_fields = [
+        'name',
+        'category__name'
+    ]
 
 
 class AdditionalPropertyAdmin(admin.ModelAdmin):
