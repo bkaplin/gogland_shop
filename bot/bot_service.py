@@ -175,7 +175,7 @@ class BotService:
             order.cancel_order_n_recalculate_rests()
             logger.info(f"Пользователь {tg_user.id}:{tg_user.first_name} отменил заказ №{order.pk}")
 
-        query.edit_message_text(text="Приходите еще")
+        query.edit_message_text(text="Приходите еще. Для нового заказа нажмите /start")
 
         logger.info(f"Пользователь {tg_user.id}:{tg_user.first_name} вышел")
         return ConversationHandler.END

@@ -1,3 +1,5 @@
+import telegram
+from django.conf import settings
 from django.contrib import admin
 from user.models import User
 from django.utils.translation import gettext as _, gettext_lazy as l_
@@ -14,7 +16,8 @@ class UserAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         'is_active',
-        'is_verified'
+        'is_verified',
+        'is_vip'
     ]
 
     def mark_active(self, request, queryset):
@@ -27,6 +30,12 @@ class UserAdmin(admin.ModelAdmin):
 
     def mark_verified(self, request, queryset):
         queryset.update(is_verified=True)
+        bot = telegram.Bot(token=settings.TG_TOKEN)
+        for user in queryset:
+            tg_message = bot.send_message(
+                text="Теперь можно пользоваться ботом. Для начала, нажмите /start",
+                chat_id=user.tg_id,
+            )
     mark_verified.short_description = _(u'Сделать верифицированными')
 
     def mark_inverified(self, request, queryset):

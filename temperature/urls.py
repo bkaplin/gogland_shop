@@ -18,5 +18,5 @@ from temperature import views
 
 urlpatterns = [
     path('calculate/', views.CalculateAverage.as_view()),
-    path('surprize/', views.TempView.as_view()),
+    # path('surprize/', views.TempView.as_view()),
 ]
