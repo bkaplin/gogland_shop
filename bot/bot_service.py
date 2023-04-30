@@ -571,10 +571,17 @@ class BotService:
                                                                text=message_to_admins,
                                                                is_for_admins=True).exists()
             if not has_notification_to_admin:
+                bottom_buttons = [[
+                    InlineKeyboardButton(f"Верифицировать {settings.SHIPPED_ICON}", callback_data=f'verify_user__{user_id}'),
+                    InlineKeyboardButton(f"Заблокировать {settings.CANCELLED_ICON}", callback_data=f'block_user__{user_id}'),
+                ]]
+                keyboard = bottom_buttons
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 for admin_chat in admins_chats:
                     tg_message = self.bot.send_message(
                         text=message_to_admins,
                         chat_id=admin_chat.tg_id,
+                        reply_markup=reply_markup,
                     )
                     Message.objects.create(
                         chat=admin_chat,
@@ -690,6 +697,29 @@ class BotService:
         # если идет работа над заказом со стороны админа (оплачено/отменено)
         if variant.startswith('__'):
             return self._process_order_status(variant, query, local_user)
+        elif variant.startswith('verify_user__'):
+            _usr_id = variant.split('__')[-1]
+            new_user = User.objects.filter(tg_id=_usr_id).first()
+            if new_user:
+                new_user.is_verified = True
+                new_user.save()
+                tg_message = self.bot.send_message(
+                    text="Теперь можно пользоваться ботом. Для начала, нажмите /start",
+                    chat_id=new_user.tg_id,
+                )
+                query.answer()
+
+                # редактируем сообщение, тем самым кнопки в чате заменятся на этот ответ.
+                query.edit_message_text(text=f"Пользователь {new_user} верифицирован")
+            return
+        elif variant.startswith('block_user__'):
+            _usr_id = variant.split('__')[-1]
+            new_user = User.objects.filter(tg_id=_usr_id).first()
+            if new_user:
+                query.answer()
+                query.edit_message_text(text=f"Пользователь {new_user} НЕ верифицирован. "
+                                             f"Теперь его можно верифицировать только в административной панели.")
+            return
 
         work_time = ShopSettings.get_solo().work_time_today
         work_time_text = self.work_time_text_fmt.format(work_time)
