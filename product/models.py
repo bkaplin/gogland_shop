@@ -38,7 +38,7 @@ class Category(models.Model):
             return res_has_products
 
         for category in child_categories:
-            if category.has_products:
+            if category.has_products(user_tg_id):
                 return True
         return False
 
