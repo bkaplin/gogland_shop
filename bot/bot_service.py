@@ -32,7 +32,7 @@ class BotService:
         self.cart_info_message = f"Оплатить по номеру карты \n\n" \
                                  f"`{self.cart_number.number}`\n" \
                                  f"(нажать, чтобы скопировать)." if self.cart_number else ""
-        self.work_time_text_fmt = '❗❗❗❗❗❗❗❗❗❗❗❗❗❗❗\nВремя работы магазина {}\n❗❗❗❗❗❗❗❗❗❗❗❗❗❗❗\n'
+        self.work_time_text_fmt = '❗❗❗❗❗❗❗❗❗❗❗❗❗❗❗\n{}\n❗❗❗❗❗❗❗❗❗❗❗❗❗❗❗\n'
 
     @staticmethod
     def _get_local_user(tg_user):
@@ -220,7 +220,9 @@ class BotService:
 
         now_time = datetime.now().time()
         if now_time < shop_start_work or now_time > shop_end_work:
-            warning_text = f'{self.work_time_text_fmt.format(shop_settings.work_time_today)}\n' \
+            warning_message = self.work_time_text_fmt.format(shop_settings.work_info_message)
+            warning_message = warning_message + ' {}' if '{}' not in warning_message else warning_message
+            warning_text = f'{warning_message.format(shop_settings.work_time_today)}\n' \
                            f'Сейчас заказ не будет выдан. Приходите в рабочее время.'
             self.bot.send_message(
                 text=warning_text, chat_id=local_chat.tg_id
@@ -264,8 +266,11 @@ class BotService:
         return
 
     def _process_order_item_count(self, update, text_received, local_user, tg_user, from_chat):
-        work_time = ShopSettings.get_solo().work_time_today
-        work_time_text = self.work_time_text_fmt.format(work_time)
+        shop_settings = ShopSettings.get_solo()
+        work_time = shop_settings.work_time_today
+        warning_message = self.work_time_text_fmt.format(shop_settings.work_info_message)
+        warning_message = warning_message + ' {}' if '{}' not in warning_message else warning_message
+        work_time_text = warning_message.format(work_time)
 
         order = local_user.orders.filter(in_cart=True).first()
         oi, oi_category = None, None
@@ -605,9 +610,11 @@ class BotService:
     def send_root_menu(self, update, user_has_order_in_cart, additional_message=''):
         keyboard = self.get_root_menu(user_has_order_in_cart)
         reply_markup = InlineKeyboardMarkup(keyboard)
-
-        work_time = ShopSettings.get_solo().work_time_today
-        work_time_text = self.work_time_text_fmt.format(work_time)
+        shop_settings = ShopSettings.get_solo()
+        work_time = shop_settings.work_time_today
+        warning_message = self.work_time_text_fmt.format(shop_settings.work_info_message)
+        warning_message = warning_message + ' {}' if '{}' not in warning_message else warning_message
+        work_time_text = warning_message.format(work_time)
 
         # Отправляем сообщение с текстом и добавленной клавиатурой `reply_markup`
         update.message.reply_text(
@@ -721,8 +728,11 @@ class BotService:
                                              f"Теперь его можно верифицировать только в административной панели.")
             return
 
-        work_time = ShopSettings.get_solo().work_time_today
-        work_time_text = self.work_time_text_fmt.format(work_time)
+        shop_settings = ShopSettings.get_solo()
+        work_time = shop_settings.work_time_today
+        warning_message = self.work_time_text_fmt.format(shop_settings.work_info_message)
+        warning_message = warning_message + ' {}' if '{}' not in warning_message else warning_message
+        work_time_text = warning_message.format(work_time)
 
         buy = False
         order = local_user.orders.filter(in_cart=True).first()

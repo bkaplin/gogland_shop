@@ -105,6 +105,7 @@ class ShopSettingsAdmin(SingletonModelAdmin):
         (
             _('Настройки работы магазина'),
             {'fields': (
+                'work_info_message',
                 'work_start',
                 'work_end',
             )}

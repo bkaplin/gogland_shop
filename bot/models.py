@@ -97,8 +97,13 @@ class CardNumber(models.Model):
 
 
 class ShopSettings(SingletonModel):
-    work_time = models.CharField(verbose_name=l_(u'Время работы магазина сегодня'), max_length=255, default=u'11 - 19',
-                                 editable=False)
+    work_info_message = models.TextField(
+        verbose_name=l_(u'Сообщение о графике работы магазина'),
+        default=u'Время работы магазина {}',
+        help_text=l_(u'Сообщение с информацией о графике работы, '
+                     u'отображается в самом верху сообщения от бота пользователю. '
+                     u'Оставить скобки "{}" для вставки времени работы в нужное место сообщения')
+    )
     work_start = models.TimeField(verbose_name=l_(u'Время начала работы магазина сегодня'), blank=True, null=True)
     work_end = models.TimeField(verbose_name=l_(u'Время окончания работы магазина сегодня'), blank=True, null=True)
     enable_verification = models.BooleanField(verbose_name=l_(u'Включить верификацию пользователей'), default=False)
