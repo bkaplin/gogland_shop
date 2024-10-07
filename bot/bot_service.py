@@ -29,8 +29,9 @@ class BotService:
     def __init__(self):
         self.bot = telegram.Bot(token=settings.TG_TOKEN)
         self.cart_number = CardNumber.objects.filter(is_active=True).first()
+        phone_card_info = f"по номеру телефона\n`{self.cart_number.phone}`" if self.cart_number and self.cart_number.phone else ""
         self.cart_info_message = f"Оплатить по номеру карты \n\n" \
-                                 f"`{self.cart_number.number}`\n" \
+                                 f"`{self.cart_number.number}`\n{phone_card_info}" \
                                  f"(нажать, чтобы скопировать)." if self.cart_number else ""
         self.work_time_text_fmt = '❗❗❗❗❗❗❗❗❗❗❗❗❗❗❗\n{}\n❗❗❗❗❗❗❗❗❗❗❗❗❗❗❗\n'
 
