@@ -32,11 +32,12 @@ class BotService:
 
     @property
     def cart_info_message(self):
-        self.cart_number = CardNumber.objects.filter(is_active=True).first()
-        phone_card_info = f"по номеру телефона\n`{self.cart_number.phone}`" if self.cart_number and self.cart_number.phone else ""
+        cart = CardNumber.objects.filter(is_active=True).first()
+        bank_name = f" ({cart.bank_name})" if cart and cart.bank_name else ""
+        phone_card_info = f"по номеру телефона\n`{cart.phone}`{bank_name}\n" if cart and cart.phone else ""
         cart_info_message = f"Оплатить по номеру карты \n\n" \
-                            f"`{self.cart_number.number}`\n{phone_card_info}" \
-                            f"(нажать, чтобы скопировать)." if self.cart_number else ""
+                            f"`{cart.number}`\n{phone_card_info}" \
+                            f"(нажать, чтобы скопировать)." if cart else ""
         return cart_info_message
 
     @staticmethod

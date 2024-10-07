@@ -86,6 +86,7 @@ class GroupBotMessage(models.Model):
 class CardNumber(models.Model):
     number = models.CharField(max_length=255, verbose_name=l_(u'Номер карты'))
     phone = models.CharField(max_length=15, verbose_name=l_(u"Номер телефона"), blank=True, null=True)
+    bank_name = models.CharField(max_length=255, verbose_name=l_(u"Наименование банка"), blank=True, null=True)
     owner = models.CharField(max_length=255, verbose_name=l_(u'Владелец'))
     is_active = models.BooleanField(verbose_name=l_(u'Активна'), default=False)
 
